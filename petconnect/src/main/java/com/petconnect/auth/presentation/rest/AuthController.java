@@ -46,7 +46,8 @@ public class AuthController {
                 new Email(request.email()),
                 request.password(),
                 request.firstName(),
-                request.lastName());
+                request.lastName(),
+                request.profileType());
         var response = registerUseCase.execute(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

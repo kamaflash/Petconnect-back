@@ -1,50 +1,60 @@
 package com.petconnect.users.application.usecases;
 
-import com.petconnect.users.application.dto.UpdateProfileRequest;
-import com.petconnect.users.application.dto.UserProfileResponse;
-import com.petconnect.users.domain.exceptions.UserNotFoundException;
+import com.petconnect.shared.infrastructure.services.CloudinaryService;
+import com.petconnect.users.application.dtos.UpdateProfileRequest;
+import com.petconnect.users.domain.UserProfile;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.UUID;
 
 @Service
 public class UpdateProfileUseCase {
 
     private final UserProfileRepository userProfileRepository;
+    private final CloudinaryService cloudinaryService;
 
-    public UpdateProfileUseCase(UserProfileRepository userProfileRepository) {
+    public UpdateProfileUseCase(
+            UserProfileRepository userProfileRepository,
+            CloudinaryService cloudinaryService) {
         this.userProfileRepository = userProfileRepository;
+        this.cloudinaryService = cloudinaryService;
     }
 
-    @Transactional
-    public UserProfileResponse execute(UUID authUserId, UpdateProfileRequest request) {
-        var profile = userProfileRepository.findByAuthUserId(authUserId)
-                .orElseThrow(() -> new UserNotFoundException("Profile not found for user: " + authUserId));
+    public UserProfile execute(
+            UUID userId,
+            UpdateProfileRequest data,
+            MultipartFile avatar,
+            MultipartFile coverImage) throws IOException {
 
-        profile.updateProfile(
-                request.firstName(),
-                request.lastName(),
-                request.phone(),
-                request.bio(),
-                request.dateOfBirth());
-        profile.updateLocation(request.city(), request.country());
+        var profile = userProfileRepository.findByAuthUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
 
-        var saved = userProfileRepository.save(profile);
+        // Subir avatar a Cloudinary si se proporciona
+        if (avatar != null && !avatar.isEmpty()) {
+            String avatarUrl = cloudinaryService.uploadImage(avatar);
+            profile.updateAvatar(avatarUrl);
+        }
 
-        return new UserProfileResponse(
-                saved.getId(),
-                saved.getAuthUserId(),
-                saved.getFirstName(),
-                saved.getLastName(),
-                saved.getPhone(),
-                saved.getBio(),
-                saved.getAvatarUrl(),
-                saved.getDateOfBirth(),
-                saved.getCity(),
-                saved.getCountry(),
-                saved.isProfilePublic(),
-                saved.isNotificationsEnabled());
+        // Subir cover image a Cloudinary si se proporciona
+        if (coverImage != null && !coverImage.isEmpty()) {
+            String coverImageUrl = cloudinaryService.uploadImage(coverImage);
+            profile.setCoverImageUrl(coverImageUrl);
+        }
+
+        // Actualizar otros campos del perfil
+        if (data != null) {
+            profile.updateProfile(
+                    data.firstName(),
+                    data.lastName(),
+                    data.phone(),
+                    data.bio(),
+                    data.dateOfBirth());
+            profile.updateLocation(data.city(), data.country());
+        }
+
+        return userProfileRepository.save(profile);
     }
 }

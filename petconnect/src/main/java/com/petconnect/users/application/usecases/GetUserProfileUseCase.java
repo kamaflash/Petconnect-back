@@ -30,10 +30,12 @@ public class GetUserProfileUseCase {
                 profile.getPhone(),
                 profile.getBio(),
                 profile.getAvatarUrl(),
+                profile.getCoverImageUrl(),
                 profile.getDateOfBirth(),
                 profile.getCity(),
                 profile.getCountry(),
                 profile.isProfilePublic(),
-                profile.isNotificationsEnabled());
+                profile.isNotificationsEnabled(),
+                profile.getProfileType());
     }
 }

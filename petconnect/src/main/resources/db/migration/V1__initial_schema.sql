@@ -28,11 +28,13 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     phone VARCHAR(20),
     bio VARCHAR(500),
     avatar_url VARCHAR(255),
+    cover_image_url VARCHAR(255),
     date_of_birth DATE,
     city VARCHAR(100),
     country VARCHAR(100),
     profile_public BOOLEAN NOT NULL DEFAULT TRUE,
-    notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE
+    notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    profile_type VARCHAR(20) NOT NULL
 );
 
 CREATE INDEX idx_user_profiles_auth_user_id ON user_profiles(auth_user_id);

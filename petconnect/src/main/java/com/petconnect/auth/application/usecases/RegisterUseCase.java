@@ -9,6 +9,9 @@ import com.petconnect.auth.domain.exceptions.AuthException;
 import com.petconnect.auth.domain.repositories.AuthUserRepository;
 import com.petconnect.shared.domain.DomainEventPublisher;
 import com.petconnect.shared.infrastructure.security.JwtService;
+import com.petconnect.users.application.dto.UserProfileResponse;
+import com.petconnect.users.domain.UserProfile;
+import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,59 +24,85 @@ import java.time.LocalDateTime;
 @Service
 public class RegisterUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(RegisterUseCase.class);
+        private static final Logger log = LoggerFactory.getLogger(RegisterUseCase.class);
 
-    private final AuthUserRepository authUserRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
-    private final DomainEventPublisher eventPublisher;
-    private final long accessTokenExpiration;
+        private final AuthUserRepository authUserRepository;
+        private final UserProfileRepository userProfileRepository;
+        private final PasswordEncoder passwordEncoder;
+        private final JwtService jwtService;
+        private final DomainEventPublisher eventPublisher;
+        private final long accessTokenExpiration;
 
-    public RegisterUseCase(
-            AuthUserRepository authUserRepository,
-            PasswordEncoder passwordEncoder,
-            JwtService jwtService,
-            DomainEventPublisher eventPublisher,
-            @Value("${jwt.access-token.expiration}") long accessTokenExpiration) {
-        this.authUserRepository = authUserRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtService = jwtService;
-        this.eventPublisher = eventPublisher;
-        this.accessTokenExpiration = accessTokenExpiration;
-    }
-
-    @Transactional
-    public AuthResponse execute(RegisterUserCommand command) {
-        log.info("Registering new user with email: {}", command.email());
-
-        if (authUserRepository.existsByEmail(command.email().value())) {
-            log.warn("Registration failed - email already exists: {}", command.email());
-            throw new AuthException("Email already registered");
+        public RegisterUseCase(
+                        AuthUserRepository authUserRepository,
+                        UserProfileRepository userProfileRepository,
+                        PasswordEncoder passwordEncoder,
+                        JwtService jwtService,
+                        DomainEventPublisher eventPublisher,
+                        @Value("${jwt.access-token.expiration}") long accessTokenExpiration) {
+                this.authUserRepository = authUserRepository;
+                this.userProfileRepository = userProfileRepository;
+                this.passwordEncoder = passwordEncoder;
+                this.jwtService = jwtService;
+                this.eventPublisher = eventPublisher;
+                this.accessTokenExpiration = accessTokenExpiration;
         }
 
-        var encodedPassword = passwordEncoder.encode(command.password());
-        var authUser = new AuthUser(command.email().value(), encodedPassword, UserRole.USER);
+        @Transactional
+        public AuthResponse execute(RegisterUserCommand command) {
+                log.info("Registering new user with email: {}", command.email());
 
-        var savedUser = authUserRepository.save(authUser);
+                if (authUserRepository.existsByEmail(command.email().value())) {
+                        log.warn("Registration failed - email already exists: {}", command.email());
+                        throw new AuthException("Email already registered");
+                }
 
-        var accessToken = jwtService.generateAccessToken(savedUser.getId(), savedUser.getEmail(),
-                savedUser.getRole().name());
-        var refreshToken = jwtService.generateRefreshToken(savedUser.getId(), savedUser.getEmail());
+                var encodedPassword = passwordEncoder.encode(command.password());
+                var authUser = new AuthUser(command.email().value(), encodedPassword, UserRole.USER);
 
-        savedUser.updateRefreshToken(refreshToken, LocalDateTime.now().plusDays(30));
-        authUserRepository.save(savedUser);
+                var savedUser = authUserRepository.save(authUser);
 
-        // Publish domain event
-        var event = new UserRegisteredEvent(savedUser.getId(), savedUser.getEmail());
-        eventPublisher.publish(event);
-        log.info("User registered successfully: userId={}, email={}", savedUser.getId(), savedUser.getEmail());
+                // Create user profile
+                var userProfile = new UserProfile(savedUser.getId(), command.firstName(), command.lastName(),
+                                command.profileType());
+                var savedProfile = userProfileRepository.save(userProfile);
 
-        return new AuthResponse(
-                savedUser.getId(),
-                savedUser.getEmail(),
-                savedUser.getRole().name(),
-                accessToken,
-                refreshToken,
-                accessTokenExpiration / 1000);
-    }
+                var accessToken = jwtService.generateAccessToken(savedUser.getId(), savedUser.getEmail(),
+                                savedUser.getRole().name());
+                var refreshToken = jwtService.generateRefreshToken(savedUser.getId(), savedUser.getEmail());
+
+                savedUser.updateRefreshToken(refreshToken, LocalDateTime.now().plusDays(30));
+                authUserRepository.save(savedUser);
+
+                // Publish domain event
+                var event = new UserRegisteredEvent(savedUser.getId(), savedUser.getEmail());
+                eventPublisher.publish(event);
+                log.info("User registered successfully: userId={}, email={}", savedUser.getId(), savedUser.getEmail());
+
+                // Create profile response
+                var profileResponse = new UserProfileResponse(
+                                savedProfile.getId(),
+                                savedProfile.getAuthUserId(),
+                                savedProfile.getFirstName(),
+                                savedProfile.getLastName(),
+                                savedProfile.getPhone(),
+                                savedProfile.getBio(),
+                                savedProfile.getAvatarUrl(),
+                                savedProfile.getCoverImageUrl(),
+                                savedProfile.getDateOfBirth(),
+                                savedProfile.getCity(),
+                                savedProfile.getCountry(),
+                                savedProfile.isProfilePublic(),
+                                savedProfile.isNotificationsEnabled(),
+                                savedProfile.getProfileType());
+
+                return new AuthResponse(
+                                savedUser.getId(),
+                                savedUser.getEmail(),
+                                savedUser.getRole().name(),
+                                accessToken,
+                                refreshToken,
+                                accessTokenExpiration / 1000,
+                                profileResponse);
+        }
 }

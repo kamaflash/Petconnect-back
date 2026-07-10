@@ -5,6 +5,8 @@ import com.petconnect.auth.application.dto.RefreshTokenRequest;
 import com.petconnect.auth.domain.exceptions.AuthException;
 import com.petconnect.auth.domain.repositories.AuthUserRepository;
 import com.petconnect.shared.infrastructure.security.JwtService;
+import com.petconnect.users.application.dto.UserProfileResponse;
+import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,14 +17,17 @@ import java.time.LocalDateTime;
 public class RefreshTokenUseCase {
 
     private final AuthUserRepository authUserRepository;
+    private final UserProfileRepository userProfileRepository;
     private final JwtService jwtService;
     private final long accessTokenExpiration;
 
     public RefreshTokenUseCase(
             AuthUserRepository authUserRepository,
+            UserProfileRepository userProfileRepository,
             JwtService jwtService,
             @Value("${jwt.access-token.expiration}") long accessTokenExpiration) {
         this.authUserRepository = authUserRepository;
+        this.userProfileRepository = userProfileRepository;
         this.jwtService = jwtService;
         this.accessTokenExpiration = accessTokenExpiration;
     }
@@ -53,12 +58,31 @@ public class RefreshTokenUseCase {
         authUser.updateRefreshToken(newRefreshToken, LocalDateTime.now().plusDays(30));
         authUserRepository.save(authUser);
 
+        var userProfile = userProfileRepository.findByAuthUserId(authUser.getId())
+                .map(profile -> new UserProfileResponse(
+                        profile.getId(),
+                        profile.getAuthUserId(),
+                        profile.getFirstName(),
+                        profile.getLastName(),
+                        profile.getPhone(),
+                        profile.getBio(),
+                        profile.getAvatarUrl(),
+                        profile.getCoverImageUrl(),
+                        profile.getDateOfBirth(),
+                        profile.getCity(),
+                        profile.getCountry(),
+                        profile.isProfilePublic(),
+                        profile.isNotificationsEnabled(),
+                        profile.getProfileType()))
+                .orElse(null);
+
         return new AuthResponse(
                 authUser.getId(),
                 authUser.getEmail(),
                 authUser.getRole().name(),
                 newAccessToken,
                 newRefreshToken,
-                accessTokenExpiration / 1000);
+                accessTokenExpiration / 1000,
+                userProfile);
     }
 }

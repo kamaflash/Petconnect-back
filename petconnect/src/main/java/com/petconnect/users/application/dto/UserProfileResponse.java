@@ -11,9 +11,11 @@ public record UserProfileResponse(
         String phone,
         String bio,
         String avatarUrl,
+        String coverImageUrl,
         LocalDate dateOfBirth,
         String city,
         String country,
         boolean profilePublic,
-        boolean notificationsEnabled) {
+        boolean notificationsEnabled,
+        String profileType) {
 }

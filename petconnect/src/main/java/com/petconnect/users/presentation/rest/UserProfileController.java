@@ -1,53 +1,39 @@
 package com.petconnect.users.presentation.rest;
 
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
-import com.petconnect.users.application.dto.UpdateProfileRequest;
-import com.petconnect.users.application.dto.UserProfileResponse;
-import com.petconnect.users.application.usecases.GetUserProfileUseCase;
+import com.petconnect.users.application.dtos.UpdateProfileRequest;
 import com.petconnect.users.application.usecases.UpdateProfileUseCase;
-import jakarta.validation.Valid;
+import com.petconnect.users.domain.UserProfile;
+import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserProfileController {
 
-    private final GetUserProfileUseCase getUserProfileUseCase;
     private final UpdateProfileUseCase updateProfileUseCase;
+    private final UserProfileRepository userProfileRepository;
 
     public UserProfileController(
-            GetUserProfileUseCase getUserProfileUseCase,
-            UpdateProfileUseCase updateProfileUseCase) {
-        this.getUserProfileUseCase = getUserProfileUseCase;
+            UpdateProfileUseCase updateProfileUseCase,
+            UserProfileRepository userProfileRepository) {
         this.updateProfileUseCase = updateProfileUseCase;
+        this.userProfileRepository = userProfileRepository;
     }
 
-    @GetMapping("/me")
-    public ResponseEntity<UserProfileResponse> getMyProfile(Authentication authentication) {
-        var userId = getUserId(authentication);
-        var response = getUserProfileUseCase.execute(userId);
-        return ResponseEntity.ok(response);
-    }
+    @PutMapping("/profile")
+    public ResponseEntity<UserProfile> updateProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestPart(value = "data", required = false) UpdateProfileRequest data,
+            @RequestPart(value = "avatar", required = false) MultipartFile avatar,
+            @RequestPart(value = "coverImage", required = false) MultipartFile coverImage) throws IOException {
 
-    @PutMapping("/me")
-    public ResponseEntity<UserProfileResponse> updateMyProfile(
-            Authentication authentication,
-            @Valid @RequestBody UpdateProfileRequest request) {
-        var userId = getUserId(authentication);
-        var response = updateProfileUseCase.execute(userId, request);
-        return ResponseEntity.ok(response);
-    }
-
-    private java.util.UUID getUserId(Authentication authentication) {
-        if (authentication.getPrincipal() instanceof CustomUserDetails userDetails) {
-            return userDetails.getUserId();
-        }
-        throw new IllegalStateException("User not authenticated");
+        var profile = updateProfileUseCase.execute(userDetails.getUserId(), data, avatar, coverImage);
+        return ResponseEntity.ok(profile);
     }
 }

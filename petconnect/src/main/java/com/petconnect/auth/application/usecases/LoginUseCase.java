@@ -5,6 +5,8 @@ import com.petconnect.auth.application.dto.AuthResponse;
 import com.petconnect.auth.domain.exceptions.AuthException;
 import com.petconnect.auth.domain.repositories.AuthUserRepository;
 import com.petconnect.shared.infrastructure.security.JwtService;
+import com.petconnect.users.application.dto.UserProfileResponse;
+import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,16 +22,19 @@ public class LoginUseCase {
     private static final Logger log = LoggerFactory.getLogger(LoginUseCase.class);
 
     private final AuthUserRepository authUserRepository;
+    private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final long accessTokenExpiration;
 
     public LoginUseCase(
             AuthUserRepository authUserRepository,
+            UserProfileRepository userProfileRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             @Value("${jwt.access-token.expiration}") long accessTokenExpiration) {
         this.authUserRepository = authUserRepository;
+        this.userProfileRepository = userProfileRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.accessTokenExpiration = accessTokenExpiration;
@@ -62,6 +67,24 @@ public class LoginUseCase {
         authUser.updateRefreshToken(refreshToken, LocalDateTime.now().plusDays(30));
         authUserRepository.save(authUser);
 
+        var userProfile = userProfileRepository.findByAuthUserId(authUser.getId())
+                .map(profile -> new UserProfileResponse(
+                        profile.getId(),
+                        profile.getAuthUserId(),
+                        profile.getFirstName(),
+                        profile.getLastName(),
+                        profile.getPhone(),
+                        profile.getBio(),
+                        profile.getAvatarUrl(),
+                        profile.getCoverImageUrl(),
+                        profile.getDateOfBirth(),
+                        profile.getCity(),
+                        profile.getCountry(),
+                        profile.isProfilePublic(),
+                        profile.isNotificationsEnabled(),
+                        profile.getProfileType()))
+                .orElse(null);
+
         log.info("Login successful: userId={}, email={}", authUser.getId(), authUser.getEmail());
 
         return new AuthResponse(
@@ -70,6 +93,7 @@ public class LoginUseCase {
                 authUser.getRole().name(),
                 accessToken,
                 refreshToken,
-                accessTokenExpiration / 1000);
+                accessTokenExpiration / 1000,
+                userProfile);
     }
 }
