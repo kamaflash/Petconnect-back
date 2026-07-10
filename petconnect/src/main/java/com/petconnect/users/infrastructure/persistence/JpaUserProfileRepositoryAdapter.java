@@ -4,6 +4,7 @@ import com.petconnect.users.domain.UserProfile;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,6 +25,11 @@ public class JpaUserProfileRepositoryAdapter implements UserProfileRepository {
     @Override
     public Optional<UserProfile> findByAuthUserId(UUID authUserId) {
         return springDataUserProfileRepository.findByAuthUserId(authUserId);
+    }
+
+    @Override
+    public List<UserProfile> findAll() {
+        return springDataUserProfileRepository.findAll();
     }
 
     @Override

@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -34,14 +35,17 @@ public class PetController {
     private final CreatePetUseCase createPetUseCase;
     private final GetPetUseCase getPetUseCase;
     private final UpdatePetUseCase updatePetUseCase;
+    private final com.petconnect.pets.domain.repositories.PetRepository petRepository;
 
     public PetController(
             CreatePetUseCase createPetUseCase,
             GetPetUseCase getPetUseCase,
-            UpdatePetUseCase updatePetUseCase) {
+            UpdatePetUseCase updatePetUseCase,
+            com.petconnect.pets.domain.repositories.PetRepository petRepository) {
         this.createPetUseCase = createPetUseCase;
         this.getPetUseCase = getPetUseCase;
         this.updatePetUseCase = updatePetUseCase;
+        this.petRepository = petRepository;
     }
 
     @PostMapping
@@ -70,6 +74,30 @@ public class PetController {
         log.debug("GET /api/v1/pets/{}", petId);
         var response = getPetUseCase.execute(petId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/by-owner/{ownerId}")
+    public ResponseEntity<List<PetResponse>> getPetsByOwner(@PathVariable UUID ownerId) {
+        log.debug("GET /api/v1/pets/by-owner/{}", ownerId);
+        var pets = petRepository.findByOwnerId(ownerId);
+        var responses = pets.stream()
+                .map(pet -> new PetResponse(
+                        pet.getId(),
+                        pet.getOwnerId(),
+                        pet.getName(),
+                        pet.getSpecies().name(),
+                        pet.getBreed(),
+                        pet.getDateOfBirth(),
+                        pet.getGender(),
+                        pet.getBio(),
+                        pet.getAvatarUrl(),
+                        pet.getWeight(),
+                        pet.getWeightUnit(),
+                        pet.isActive(),
+                        pet.getMicrochipId(),
+                        pet.getColor()))
+                .toList();
+        return ResponseEntity.ok(responses);
     }
 
     @PutMapping("/{petId}")
