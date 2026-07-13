@@ -1,13 +1,13 @@
 package com.petconnect.home.presentation.rest;
 
 import com.petconnect.home.application.HomeService;
-import com.petconnect.home.domain.Story;
 import com.petconnect.home.domain.Suggestion;
 import com.petconnect.home.domain.MarketplacePromo;
 import com.petconnect.home.domain.VetService;
 import com.petconnect.home.domain.Adoption;
 import com.petconnect.home.domain.Achievement;
 import com.petconnect.home.domain.UserLevel;
+import com.petconnect.social.domain.Story;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;

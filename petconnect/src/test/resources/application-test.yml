@@ -1,0 +1,40 @@
+# Test profile - uses H2 in-memory database
+redis:
+  enabled: false
+websocket:
+  enabled: false
+
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+  datasource:
+    url: jdbc:h2:mem:petconnect_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+jwt:
+  access-token:
+    secret: dGhpcyBpcyBhIHRlc3QgYWNjZXNzIHRva2VuIHNlY3JldCBrZXkgZm9yIHVuaXQgdGVzdGluZw==
+    expiration: 3600000
+  refresh-token:
+    secret: dGhpcyBpcyBhIHRlc3QgcmVmcmVzaCB0b2tlbiBzZWNyZXQga2V5IGZvciB1bml0IHRlc3Rpbmc=
+    expiration: 2592000000
+
+cloudinary:
+  enabled: false
+  cloud-name: test
+  api-key: test
+  api-secret: test

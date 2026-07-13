@@ -43,10 +43,55 @@ public class Post extends BaseEntity {
         this.active = true;
     }
 
-    public UUID getAuthorId() { return authorId; }
-    public String getImageUrl() { return imageUrl; }
-    public String getCaption() { return caption; }
-    public int getLikesCount() { return likesCount; }
-    public int getCommentsCount() { return commentsCount; }
-    public boolean isActive() { return active; }
+    public void incrementLikes() {
+        this.likesCount++;
+    }
+
+    public void decrementLikes() {
+        if (this.likesCount > 0) {
+            this.likesCount--;
+        }
+    }
+
+    public void incrementComments() {
+        this.commentsCount++;
+    }
+
+    public void decrementComments() {
+        if (this.commentsCount > 0) {
+            this.commentsCount--;
+        }
+    }
+
+    public void softDelete() {
+        this.active = false;
+    }
+
+    public void restore() {
+        this.active = true;
+    }
+
+    public UUID getAuthorId() {
+        return authorId;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public String getCaption() {
+        return caption;
+    }
+
+    public int getLikesCount() {
+        return likesCount;
+    }
+
+    public int getCommentsCount() {
+        return commentsCount;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
 }

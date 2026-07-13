@@ -56,6 +56,14 @@ public class JwtService {
         return isTokenValid(token, refreshTokenSecret);
     }
 
+    public long getAccessTokenExpiration() {
+        return accessTokenExpiration;
+    }
+
+    public long getRefreshTokenExpiration() {
+        return refreshTokenExpiration;
+    }
+
     private String generateToken(UUID userId, String email, String role, SecretKey secret, long expiration) {
         var claims = new java.util.HashMap<String, Object>();
         claims.put("userId", userId.toString());

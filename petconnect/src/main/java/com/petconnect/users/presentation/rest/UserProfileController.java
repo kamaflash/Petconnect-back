@@ -2,7 +2,7 @@ package com.petconnect.users.presentation.rest;
 
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
 import com.petconnect.users.application.dto.UserProfileResponse;
-import com.petconnect.users.application.dtos.UpdateProfileRequest;
+import com.petconnect.users.application.dto.UpdateProfileRequest;
 import com.petconnect.users.application.usecases.GetUserProfileUseCase;
 import com.petconnect.users.application.usecases.UpdateProfileUseCase;
 import com.petconnect.users.domain.UserProfile;

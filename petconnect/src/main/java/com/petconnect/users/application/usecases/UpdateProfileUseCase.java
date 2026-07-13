@@ -1,9 +1,10 @@
 package com.petconnect.users.application.usecases;
 
 import com.petconnect.shared.infrastructure.services.CloudinaryService;
-import com.petconnect.users.application.dtos.UpdateProfileRequest;
+import com.petconnect.users.application.dto.UpdateProfileRequest;
 import com.petconnect.users.domain.UserProfile;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,7 +19,7 @@ public class UpdateProfileUseCase {
 
     public UpdateProfileUseCase(
             UserProfileRepository userProfileRepository,
-            CloudinaryService cloudinaryService) {
+            @Autowired(required = false) CloudinaryService cloudinaryService) {
         this.userProfileRepository = userProfileRepository;
         this.cloudinaryService = cloudinaryService;
     }
@@ -32,14 +33,15 @@ public class UpdateProfileUseCase {
         var profile = userProfileRepository.findByAuthUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Profile not found"));
 
-        // Subir avatar a Cloudinary si se proporciona
-        if (avatar != null && !avatar.isEmpty()) {
+        // Subir avatar a Cloudinary si se proporciona y el servicio está disponible
+        if (avatar != null && !avatar.isEmpty() && cloudinaryService != null) {
             String avatarUrl = cloudinaryService.uploadImage(avatar);
             profile.updateAvatar(avatarUrl);
         }
 
-        // Subir cover image a Cloudinary si se proporciona
-        if (coverImage != null && !coverImage.isEmpty()) {
+        // Subir cover image a Cloudinary si se proporciona y el servicio está
+        // disponible
+        if (coverImage != null && !coverImage.isEmpty() && cloudinaryService != null) {
             String coverImageUrl = cloudinaryService.uploadImage(coverImage);
             profile.setCoverImageUrl(coverImageUrl);
         }

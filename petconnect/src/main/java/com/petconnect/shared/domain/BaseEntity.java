@@ -1,10 +1,9 @@
 package com.petconnect.shared.domain;
 
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.UuidGenerator;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
@@ -13,7 +12,7 @@ import java.util.UUID;
 public abstract class BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator
     private UUID id;
 
     @Version
@@ -27,8 +26,24 @@ public abstract class BaseEntity {
         this.updatedAt = LocalDateTime.now();
     }
 
+    protected BaseEntity(UUID id) {
+        this.id = id;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    protected BaseEntity(UUID id, LocalDateTime createdAt) {
+        this.id = id;
+        this.createdAt = createdAt;
+        this.updatedAt = createdAt;
+    }
+
     public UUID getId() {
         return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
     }
 
     public Long getVersion() {

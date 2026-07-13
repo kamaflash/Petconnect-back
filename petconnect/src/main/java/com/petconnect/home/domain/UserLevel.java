@@ -1,17 +1,41 @@
 package com.petconnect.home.domain;
 
-public class UserLevel {
-    private int level;
-    private int currentXp;
-    private int totalXp;
+import com.petconnect.shared.domain.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
-    public UserLevel() {
+@Entity
+@Table(name = "user_levels")
+public class UserLevel extends BaseEntity {
+
+    @Column(nullable = false)
+    private int level;
+
+    @Column(name = "current_xp", nullable = false)
+    private int currentXp;
+
+    @Column(name = "next_level_xp", nullable = false)
+    private int nextLevelXp;
+
+    protected UserLevel() {
+        super();
     }
 
-    public UserLevel(int level, int currentXp, int totalXp) {
+    public UserLevel(int level, int currentXp, int nextLevelXp) {
+        super();
         this.level = level;
         this.currentXp = currentXp;
-        this.totalXp = totalXp;
+        this.nextLevelXp = nextLevelXp;
+    }
+
+    public UserLevel(UUID id, int level, int currentXp, int nextLevelXp) {
+        super(id);
+        this.level = level;
+        this.currentXp = currentXp;
+        this.nextLevelXp = nextLevelXp;
     }
 
     public int getLevel() {
@@ -22,7 +46,7 @@ public class UserLevel {
         return currentXp;
     }
 
-    public int getTotalXp() {
-        return totalXp;
+    public int getNextLevelXp() {
+        return nextLevelXp;
     }
 }
