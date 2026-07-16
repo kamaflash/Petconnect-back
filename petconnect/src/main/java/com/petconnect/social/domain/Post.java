@@ -11,22 +11,22 @@ import java.util.UUID;
 @Table(name = "posts")
 public class Post extends BaseEntity {
 
-    @Column(nullable = false)
+    @Column(name = "author_id", nullable = false)
     private UUID authorId;
 
-    @Column(nullable = false, length = 500)
+    @Column(name = "image_url", nullable = false, length = 500)
     private String imageUrl;
 
-    @Column(length = 1000)
+    @Column(name = "caption", length = 1000)
     private String caption;
 
-    @Column(nullable = false)
+    @Column(name = "likes_count", nullable = false)
     private int likesCount;
 
-    @Column(nullable = false)
+    @Column(name = "comments_count", nullable = false)
     private int commentsCount;
 
-    @Column(nullable = false)
+    @Column(name = "active", nullable = false)
     private boolean active;
 
     protected Post() {
@@ -61,6 +61,14 @@ public class Post extends BaseEntity {
         if (this.commentsCount > 0) {
             this.commentsCount--;
         }
+    }
+
+    public void setCaption(String caption) {
+        this.caption = caption;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public void softDelete() {

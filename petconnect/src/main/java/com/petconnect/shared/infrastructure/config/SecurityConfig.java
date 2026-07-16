@@ -46,6 +46,8 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/social/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/social/posts").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())

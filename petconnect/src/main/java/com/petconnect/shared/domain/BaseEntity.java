@@ -1,5 +1,6 @@
 package com.petconnect.shared.domain;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.Version;
@@ -16,9 +17,13 @@ public abstract class BaseEntity {
     private UUID id;
 
     @Version
+    @Column(name = "version")
     private Long version;
 
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     protected BaseEntity() {

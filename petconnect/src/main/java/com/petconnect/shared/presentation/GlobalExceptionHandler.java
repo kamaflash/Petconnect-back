@@ -3,6 +3,7 @@ package com.petconnect.shared.presentation;
 import com.petconnect.auth.domain.exceptions.AuthException;
 import com.petconnect.pets.domain.exceptions.PetNotFoundException;
 import com.petconnect.users.domain.exceptions.UserNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
@@ -64,12 +65,23 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Invalid data: " + ex.getMessage());
+        problem.setTitle("Data Integrity Error");
+        problem.setProperty("timestamp", Instant.now());
+        problem.setProperty("error", ex.getClass().getSimpleName());
+        return problem;
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGenericException(Exception ex) {
         var problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
+                HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
         problem.setTitle("Internal Server Error");
         problem.setProperty("timestamp", Instant.now());
+        problem.setProperty("error", ex.getClass().getSimpleName());
         return problem;
     }
 }
