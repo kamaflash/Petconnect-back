@@ -32,6 +32,7 @@ public class GetPetUseCase {
                 pet.getGender(),
                 pet.getBio(),
                 pet.getAvatarUrl(),
+                pet.getImageUrls(),
                 pet.getWeight(),
                 pet.getWeightUnit(),
                 pet.isActive(),

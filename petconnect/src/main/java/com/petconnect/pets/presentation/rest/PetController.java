@@ -13,15 +13,12 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -48,22 +45,34 @@ public class PetController {
         this.petRepository = petRepository;
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PetResponse> createPet(
             Authentication authentication,
-            @Valid @RequestBody CreatePetRequest request) {
-        var userId = getUserId(authentication);
-        log.debug("POST /api/v1/pets - userId={}, name={}", userId, request.name());
+            @RequestParam("name") String name,
+            @RequestParam("species") String species,
+            @RequestParam(value = "breed", required = false) String breed,
+            @RequestParam(value = "dateOfBirth", required = false) String dateOfBirth,
+            @RequestParam(value = "gender", required = false) String gender,
+            @RequestParam(value = "color", required = false) String color,
+            @RequestParam(value = "microchipId", required = false) String microchipId,
+            @RequestParam(value = "ownerId", required = false) String ownerId,
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images) {
+        // Use ownerId from request if provided, otherwise get from authentication
+        UUID userId = ownerId != null ? UUID.fromString(ownerId) : getUserId(authentication);
+        log.debug("POST /api/v1/pets - userId={}, name={}", userId, name);
 
         var command = new CreatePetCommand(
                 userId,
-                request.name(),
-                Species.valueOf(request.species().toUpperCase()),
-                request.breed(),
-                request.dateOfBirth(),
-                request.gender(),
-                request.color(),
-                request.microchipId());
+                name,
+                Species.valueOf(species.toUpperCase()),
+                breed,
+                dateOfBirth != null ? java.time.LocalDate.parse(dateOfBirth) : null,
+                gender,
+                color,
+                microchipId,
+                image,
+                images);
 
         var response = createPetUseCase.execute(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -77,6 +86,7 @@ public class PetController {
     }
 
     @GetMapping("/by-owner/{ownerId}")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<PetResponse>> getPetsByOwner(@PathVariable UUID ownerId) {
         log.debug("GET /api/v1/pets/by-owner/{}", ownerId);
         var pets = petRepository.findByOwnerId(ownerId);
@@ -91,6 +101,7 @@ public class PetController {
                         pet.getGender(),
                         pet.getBio(),
                         pet.getAvatarUrl(),
+                        pet.getImageUrls(),
                         pet.getWeight(),
                         pet.getWeightUnit(),
                         pet.isActive(),

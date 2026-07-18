@@ -6,10 +6,16 @@ import com.petconnect.pets.domain.Pet;
 import com.petconnect.pets.domain.events.PetCreatedEvent;
 import com.petconnect.pets.domain.repositories.PetRepository;
 import com.petconnect.shared.domain.DomainEventPublisher;
+import com.petconnect.shared.infrastructure.services.CloudinaryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.Optional;
 
 @Service
 public class CreatePetUseCase {
@@ -18,10 +24,14 @@ public class CreatePetUseCase {
 
     private final PetRepository petRepository;
     private final DomainEventPublisher eventPublisher;
+    private final Optional<CloudinaryService> cloudinaryService;
 
-    public CreatePetUseCase(PetRepository petRepository, DomainEventPublisher eventPublisher) {
+    @Autowired
+    public CreatePetUseCase(PetRepository petRepository, DomainEventPublisher eventPublisher,
+            Optional<CloudinaryService> cloudinaryService) {
         this.petRepository = petRepository;
         this.eventPublisher = eventPublisher;
+        this.cloudinaryService = cloudinaryService;
     }
 
     @Transactional
@@ -34,6 +44,30 @@ public class CreatePetUseCase {
         if (command.breed() != null) {
             pet.updateDetails(command.name(), command.breed(), command.dateOfBirth(),
                     command.gender(), null, command.color(), command.microchipId());
+        }
+
+        // Handle image upload - single image (backward compatibility)
+        if (command.image() != null && !command.image().isEmpty() && cloudinaryService.isPresent()) {
+            try {
+                String avatarUrl = cloudinaryService.get().uploadImage(command.image());
+                pet.updateAvatar(avatarUrl);
+                log.info("Image uploaded successfully for pet: {}", pet.getId());
+            } catch (IOException e) {
+                log.error("Failed to upload image for pet", e);
+            }
+        }
+
+        // Handle multiple images
+        if (command.images() != null && !command.images().isEmpty() && cloudinaryService.isPresent()) {
+            for (MultipartFile image : command.images()) {
+                try {
+                    String imageUrl = cloudinaryService.get().uploadImage(image);
+                    pet.addImage(imageUrl);
+                    log.info("Additional image uploaded for pet: {}", pet.getId());
+                } catch (IOException e) {
+                    log.error("Failed to upload additional image for pet", e);
+                }
+            }
         }
 
         var saved = petRepository.save(pet);
@@ -57,6 +91,7 @@ public class CreatePetUseCase {
                 pet.getGender(),
                 pet.getBio(),
                 pet.getAvatarUrl(),
+                pet.getImageUrls(),
                 pet.getWeight(),
                 pet.getWeightUnit(),
                 pet.isActive(),

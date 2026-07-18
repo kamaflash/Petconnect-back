@@ -1,13 +1,19 @@
 package com.petconnect.pets.domain;
 
 import com.petconnect.shared.domain.BaseEntity;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -52,6 +58,10 @@ public class Pet extends BaseEntity {
     @Column(length = 100)
     private String color;
 
+    @OneToMany(mappedBy = "pet", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    private List<PetImage> images = new ArrayList<>();
+
     protected Pet() {
         super();
     }
@@ -82,6 +92,25 @@ public class Pet extends BaseEntity {
 
     public void updateAvatar(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public void addImage(String imageUrl) {
+        int nextOrder = images.size();
+        images.add(new PetImage(this, imageUrl, nextOrder));
+        // Keep the first image as the avatar for backward compatibility
+        if (avatarUrl == null) {
+            avatarUrl = imageUrl;
+        }
+    }
+
+    public List<String> getImageUrls() {
+        return images.stream()
+                .map(PetImage::getImageUrl)
+                .toList();
+    }
+
+    public void clearImages() {
+        images.clear();
     }
 
     public void deactivate() {

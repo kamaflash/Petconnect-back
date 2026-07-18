@@ -45,6 +45,7 @@ public class UpdatePetUseCase {
                 saved.getGender(),
                 saved.getBio(),
                 saved.getAvatarUrl(),
+                saved.getImageUrls(),
                 saved.getWeight(),
                 saved.getWeightUnit(),
                 saved.isActive(),
