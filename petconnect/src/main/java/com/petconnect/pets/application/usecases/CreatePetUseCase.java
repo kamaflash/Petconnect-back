@@ -41,10 +41,50 @@ public class CreatePetUseCase {
 
         var pet = new Pet(command.ownerId(), command.name(), command.species());
 
-        if (command.breed() != null) {
-            pet.updateDetails(command.name(), command.breed(), command.dateOfBirth(),
-                    command.gender(), null, command.color(), command.microchipId());
-        }
+        // Update basic details
+        pet.updateDetails(
+                command.name(),
+                command.breed(),
+                command.dateOfBirth(),
+                command.gender(),
+                null, // bio
+                command.color(),
+                command.microchipId());
+
+        // Update medical info
+        pet.updateMedicalInfo(
+                command.bloodType(),
+                command.allergies(),
+                command.medicalConditions(),
+                command.vetName(),
+                command.vetPhone(),
+                command.vetAddress(),
+                command.lastVaccinationDate(),
+                command.nextVaccinationDate(),
+                command.lastVetVisit(),
+                command.insuranceProvider(),
+                command.insurancePolicyNumber());
+
+        // Update additional info
+        pet.updateAdditionalInfo(
+                command.emergencyContact(),
+                command.emergencyPhone(),
+                command.adoptionDate(),
+                command.adoptionCenter(),
+                command.registrationNumber(),
+                command.licenseNumber(),
+                command.licenseExpiryDate(),
+                command.spayedNeutered(),
+                command.spayedNeuteredDate());
+
+        // Update behavior
+        pet.updateBehavior(
+                command.temperament(),
+                command.energyLevel(),
+                command.trainingLevel(),
+                command.favoriteActivities(),
+                command.favoriteFood(),
+                command.specialNeeds());
 
         // Handle image upload - single image (backward compatibility)
         if (command.image() != null && !command.image().isEmpty() && cloudinaryService.isPresent()) {
@@ -96,6 +136,35 @@ public class CreatePetUseCase {
                 pet.getWeightUnit(),
                 pet.isActive(),
                 pet.getMicrochipId(),
-                pet.getColor());
+                pet.getColor(),
+                pet.getBloodType(),
+                pet.getAllergies(),
+                pet.getMedicalConditions(),
+                pet.getVetName(),
+                pet.getVetPhone(),
+                pet.getVetAddress(),
+                pet.getLastVaccinationDate(),
+                pet.getNextVaccinationDate(),
+                pet.getLastVetVisit(),
+                pet.getInsuranceProvider(),
+                pet.getInsurancePolicyNumber(),
+                pet.getEmergencyContact(),
+                pet.getEmergencyPhone(),
+                pet.getAdoptionDate(),
+                pet.getAdoptionCenter(),
+                pet.getRegistrationNumber(),
+                pet.getLicenseNumber(),
+                pet.getLicenseExpiryDate(),
+                pet.isSpayedNeutered(),
+                pet.getSpayedNeuteredDate(),
+                pet.getTemperament(),
+                pet.getEnergyLevel(),
+                pet.getTrainingLevel(),
+                pet.getFavoriteActivities(),
+                pet.getFavoriteFood(),
+                pet.getSpecialNeeds(),
+                pet.getLastKnownLocation(),
+                pet.isLost(),
+                pet.getLostDate());
     }
 }

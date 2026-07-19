@@ -38,6 +38,22 @@ auth_users (1) ──────┐
   - `owner_id` → user_profiles(id) [ON DELETE CASCADE]
 - **Relaciones**:
   - ← user_profiles (N:1)
+- **Campos médicos y de salud**:
+  - `blood_type`, `allergies`, `medical_conditions`
+  - `vet_name`, `vet_phone`, `vet_address`
+  - `last_vaccination_date`, `next_vaccination_date`, `last_vet_visit`
+  - `insurance_provider`, `insurance_policy_number`
+- **Campos adicionales**:
+  - `emergency_contact`, `emergency_phone`
+  - `adoption_date`, `adoption_center`
+  - `registration_number`, `license_number`, `license_expiry_date`
+  - `spayed_neutered`, `spayed_neutered_date`
+  - `deceased`, `date_deceased`
+- **Campos de comportamiento**:
+  - `temperament`, `energy_level`, `training_level`
+  - `favorite_activities`, `favorite_food`, `special_needs`
+- **Campos de ubicación y seguridad**:
+  - `last_known_location`, `lost`, `lost_date`
 
 ### 4. posts
 - **PK**: `id`
