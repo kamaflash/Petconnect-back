@@ -1,7 +1,6 @@
 package com.petconnect.pets.presentation.rest;
 
 import com.petconnect.pets.application.commands.CreatePetCommand;
-import com.petconnect.pets.application.dto.CreatePetRequest;
 import com.petconnect.pets.application.dto.PetResponse;
 import com.petconnect.pets.application.dto.UpdatePetRequest;
 import com.petconnect.pets.application.usecases.CreatePetUseCase;
@@ -9,6 +8,8 @@ import com.petconnect.pets.application.usecases.GetPetUseCase;
 import com.petconnect.pets.application.usecases.UpdatePetUseCase;
 import com.petconnect.pets.domain.Species;
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
+import com.petconnect.users.domain.UserProfile;
+import com.petconnect.users.domain.repositories.UserProfileRepository;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,16 +34,19 @@ public class PetController {
     private final GetPetUseCase getPetUseCase;
     private final UpdatePetUseCase updatePetUseCase;
     private final com.petconnect.pets.domain.repositories.PetRepository petRepository;
+    private final UserProfileRepository userProfileRepository;
 
     public PetController(
             CreatePetUseCase createPetUseCase,
             GetPetUseCase getPetUseCase,
             UpdatePetUseCase updatePetUseCase,
-            com.petconnect.pets.domain.repositories.PetRepository petRepository) {
+            com.petconnect.pets.domain.repositories.PetRepository petRepository,
+            UserProfileRepository userProfileRepository) {
         this.createPetUseCase = createPetUseCase;
         this.getPetUseCase = getPetUseCase;
         this.updatePetUseCase = updatePetUseCase;
         this.petRepository = petRepository;
+        this.userProfileRepository = userProfileRepository;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -56,6 +60,7 @@ public class PetController {
             @RequestParam(value = "color", required = false) String color,
             @RequestParam(value = "microchipId", required = false) String microchipId,
             @RequestParam(value = "ownerId", required = false) String ownerId,
+            @RequestParam(value = "authUserId", required = false) String authUserId,
             @RequestPart(value = "image", required = false) MultipartFile image,
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
 
@@ -90,8 +95,9 @@ public class PetController {
             @RequestParam(value = "favoriteActivities", required = false) String favoriteActivities,
             @RequestParam(value = "favoriteFood", required = false) String favoriteFood,
             @RequestParam(value = "specialNeeds", required = false) String specialNeeds) {
-        // Use ownerId from request if provided, otherwise get from authentication
-        UUID userId = ownerId != null ? UUID.fromString(ownerId) : getUserId(authentication);
+        // Resolve ownerId: priorizar ownerId directo, luego authUserId, finalmente
+        // autenticación
+        UUID userId = resolveOwnerId(ownerId, authUserId, authentication);
         log.debug("POST /api/v1/pets - userId={}, name={}", userId, name);
 
         var command = new CreatePetCommand(
@@ -212,5 +218,20 @@ public class PetController {
             return userDetails.getUserId();
         }
         throw new IllegalStateException("User not authenticated");
+    }
+
+    /**
+     * Resuelve el ownerId a partir de ownerId directo, authUserId o autenticación
+     */
+    private UUID resolveOwnerId(String ownerId, String authUserId, Authentication authentication) {
+        if (ownerId != null && !ownerId.isEmpty()) {
+            return UUID.fromString(ownerId);
+        }
+        if (authUserId != null && !authUserId.isEmpty()) {
+            return userProfileRepository.findByAuthUserId(UUID.fromString(authUserId))
+                    .map(UserProfile::getId)
+                    .orElse(null);
+        }
+        return getUserId(authentication);
     }
 }

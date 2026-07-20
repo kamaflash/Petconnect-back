@@ -1,5 +1,8 @@
 package com.petconnect.social.presentation.rest;
 
+import com.petconnect.shared.domain.Like;
+import com.petconnect.shared.domain.Like.TargetType;
+import com.petconnect.shared.domain.repositories.LikeRepository;
 import com.petconnect.shared.infrastructure.services.CloudinaryService;
 import com.petconnect.social.domain.Post;
 import com.petconnect.social.domain.repositories.PostRepository;
@@ -26,13 +29,16 @@ public class PostController {
     private final PostRepository postRepository;
     private final UserProfileRepository userProfileRepository;
     private final CloudinaryService cloudinaryService;
+    private final LikeRepository likeRepository;
 
     public PostController(PostRepository postRepository,
             UserProfileRepository userProfileRepository,
-            @Autowired(required = false) CloudinaryService cloudinaryService) {
+            @Autowired(required = false) CloudinaryService cloudinaryService,
+            LikeRepository likeRepository) {
         this.postRepository = postRepository;
         this.userProfileRepository = userProfileRepository;
         this.cloudinaryService = cloudinaryService;
+        this.likeRepository = likeRepository;
     }
 
     @GetMapping("/posts")
@@ -136,27 +142,51 @@ public class PostController {
     }
 
     @PostMapping("/posts/{postId}/like")
-    public ResponseEntity<Post> likePost(@PathVariable UUID postId) {
-        log.debug("POST /api/v1/social/posts/{}/like", postId);
+    public ResponseEntity<LikeResponse> likePost(
+            @PathVariable UUID postId,
+            @RequestParam UUID userId) {
+        log.debug("POST /api/v1/social/posts/{}/like - userId: {}", postId, userId);
+
+        // Check if already liked
+        if (likeRepository.existsByUserIdAndTargetIdAndTargetType(userId, postId, TargetType.POST.getValue())) {
+            return ResponseEntity.ok(new LikeResponse(true, "Already liked"));
+        }
+
+        // Create the like
+        Like like = new Like(userId, postId, TargetType.POST.getValue());
+        likeRepository.save(like);
+
+        // Update post likes count
         return postRepository.findById(postId)
                 .map(post -> {
                     post.incrementLikes();
                     Post saved = postRepository.save(post);
-                    return ResponseEntity.ok(saved);
+                    return ResponseEntity.ok(new LikeResponse(true, "Liked successfully"));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/posts/{postId}/unlike")
-    public ResponseEntity<Post> unlikePost(@PathVariable UUID postId) {
-        log.debug("POST /api/v1/social/posts/{}/unlike", postId);
+    public ResponseEntity<Void> unlikePost(
+            @PathVariable UUID postId,
+            @RequestParam UUID userId) {
+        log.debug("POST /api/v1/social/posts/{}/unlike - userId: {}", postId, userId);
+
+        // Delete the like
+        likeRepository.deleteByUserIdAndTargetIdAndTargetType(userId, postId, TargetType.POST.getValue());
+
+        // Update post likes count
         return postRepository.findById(postId)
                 .map(post -> {
                     post.decrementLikes();
-                    Post saved = postRepository.save(post);
-                    return ResponseEntity.ok(saved);
+                    postRepository.save(post);
+                    return ResponseEntity.noContent().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // DTO for like response
+    public record LikeResponse(boolean liked, String message) {
     }
 }
 

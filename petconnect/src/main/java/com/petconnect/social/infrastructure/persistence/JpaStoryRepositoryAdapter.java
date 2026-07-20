@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -15,6 +16,11 @@ public class JpaStoryRepositoryAdapter implements StoryRepository {
 
     public JpaStoryRepositoryAdapter(SpringDataStoryRepository springDataStoryRepository) {
         this.springDataStoryRepository = springDataStoryRepository;
+    }
+
+    @Override
+    public Optional<Story> findById(UUID id) {
+        return springDataStoryRepository.findById(id);
     }
 
     @Override
