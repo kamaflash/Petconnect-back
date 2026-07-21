@@ -33,6 +33,11 @@ public class JpaPostRepositoryAdapter implements PostRepository {
     }
 
     @Override
+    public List<Post> findByAuthorIdIn(List<UUID> authorIds) {
+        return springDataPostRepository.findByAuthorIdIn(authorIds);
+    }
+
+    @Override
     public Post save(Post post) {
         return springDataPostRepository.save(post);
     }

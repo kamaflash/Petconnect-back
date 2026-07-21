@@ -13,6 +13,8 @@ public interface PostRepository {
 
     List<Post> findByAuthorId(UUID authorId);
 
+    List<Post> findByAuthorIdIn(List<UUID> authorIds);
+
     Post save(Post post);
 
     void delete(Post post);

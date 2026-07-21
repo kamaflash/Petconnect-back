@@ -6,6 +6,7 @@ import com.petconnect.shared.domain.repositories.LikeRepository;
 import com.petconnect.shared.infrastructure.services.CloudinaryService;
 import com.petconnect.social.domain.Post;
 import com.petconnect.social.domain.repositories.PostRepository;
+import com.petconnect.social.domain.repositories.FollowRepository;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/social")
@@ -30,15 +32,18 @@ public class PostController {
     private final UserProfileRepository userProfileRepository;
     private final CloudinaryService cloudinaryService;
     private final LikeRepository likeRepository;
+    private final FollowRepository followRepository;
 
     public PostController(PostRepository postRepository,
             UserProfileRepository userProfileRepository,
             @Autowired(required = false) CloudinaryService cloudinaryService,
-            LikeRepository likeRepository) {
+            LikeRepository likeRepository,
+            FollowRepository followRepository) {
         this.postRepository = postRepository;
         this.userProfileRepository = userProfileRepository;
         this.cloudinaryService = cloudinaryService;
         this.likeRepository = likeRepository;
+        this.followRepository = followRepository;
     }
 
     @GetMapping("/posts")
@@ -183,6 +188,26 @@ public class PostController {
                     return ResponseEntity.noContent().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ========== FEED - POSTS FROM FOLLOWED USERS ==========
+
+    @GetMapping("/posts/following/{userId}")
+    public ResponseEntity<List<Post>> getPostsFromFollowing(@PathVariable UUID userId) {
+        log.debug("GET /api/v1/social/posts/following/{}", userId);
+
+        // Get the list of users that the current user follows
+        List<UUID> followingIds = followRepository.findByFollowerId(userId).stream()
+                .map(follow -> follow.getFollowingId())
+                .collect(Collectors.toList());
+
+        // Add the user's own ID to include their own posts in the feed
+        followingIds.add(userId);
+
+        // Get posts from followed users
+        List<Post> posts = postRepository.findByAuthorIdIn(followingIds);
+
+        return ResponseEntity.ok(posts);
     }
 
     // DTO for like response

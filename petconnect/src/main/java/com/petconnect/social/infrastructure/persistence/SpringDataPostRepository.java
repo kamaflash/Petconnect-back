@@ -8,4 +8,6 @@ import java.util.UUID;
 
 public interface SpringDataPostRepository extends JpaRepository<Post, UUID> {
     List<Post> findByAuthorId(UUID authorId);
+
+    List<Post> findByAuthorIdIn(List<UUID> authorIds);
 }
