@@ -12,7 +12,7 @@ import java.util.UUID;
 public class Post extends BaseEntity {
 
     @Column(name = "author_id", nullable = false)
-    private UUID authorId;
+    private UUID authorId; // This is the authUserId, not the UserProfile ID
 
     @Column(name = "image_url", nullable = false, length = 500)
     private String imageUrl;

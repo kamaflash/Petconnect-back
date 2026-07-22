@@ -86,15 +86,6 @@ public class PostController {
             return ResponseEntity.badRequest().build();
         }
 
-        // Validate that the author exists
-        Optional<UserProfile> userProfile = userProfileRepository.findByAuthUserId(authorUuid);
-        if (userProfile.isEmpty()) {
-            log.error("Author not found with id: {}", authorUuid);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .header("error", "Author not found")
-                    .build();
-        }
-
         String imageUrl = "https://placehold.co/600x400?text=Post";
         if (image != null && !image.isEmpty() && cloudinaryService != null) {
             try {
@@ -201,11 +192,19 @@ public class PostController {
                 .map(follow -> follow.getFollowingId())
                 .collect(Collectors.toList());
 
+        log.info("User {} follows {} users: {}", userId, followingIds.size(), followingIds);
+
         // Add the user's own ID to include their own posts in the feed
         followingIds.add(userId);
 
         // Get posts from followed users
         List<Post> posts = postRepository.findByAuthorIdIn(followingIds);
+        log.info("Found {} posts for user {}", posts.size(), userId);
+
+        // Log each post
+        for (Post post : posts) {
+            log.info("Post: id={}, authorId={}, active={}", post.getId(), post.getAuthorId(), post.isActive());
+        }
 
         return ResponseEntity.ok(posts);
     }

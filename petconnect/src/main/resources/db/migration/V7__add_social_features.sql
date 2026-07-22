@@ -1,23 +1,4 @@
--- Social features: Events, Groups, Notifications, Follows, Posts
-
--- ============================================================
--- POSTS
--- ============================================================
-CREATE TABLE IF NOT EXISTS posts (
-    id UUID PRIMARY KEY,
-    version BIGINT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    author_id UUID NOT NULL REFERENCES user_profiles(id),
-    image_url VARCHAR(500) NOT NULL,
-    caption VARCHAR(1000),
-    likes_count INTEGER NOT NULL DEFAULT 0,
-    comments_count INTEGER NOT NULL DEFAULT 0,
-    active BOOLEAN NOT NULL DEFAULT TRUE
-);
-
-CREATE INDEX idx_posts_author ON posts(author_id);
-CREATE INDEX idx_posts_created ON posts(created_at DESC);
+-- Social features: Events, Groups, Notifications, Follows, Comments
 
 -- ============================================================
 -- EVENTS
@@ -144,8 +125,25 @@ CREATE TABLE IF NOT EXISTS trending_topics (
 CREATE INDEX idx_trending_active ON trending_topics(active, posts_count DESC);
 
 -- ============================================================
--- SEED DATA
+-- COMMENTS
 -- ============================================================
+CREATE TABLE IF NOT EXISTS comments (
+    id UUID PRIMARY KEY,
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    user_id UUID NOT NULL REFERENCES auth_users(id),
+    target_id UUID NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
+    content VARCHAR(500) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE INDEX idx_comments_target ON comments(target_id, target_type, active);
+CREATE INDEX idx_comments_user ON comments(user_id, active, created_at);
+
+-- ============================================================
+-- SEED DATA
 
 -- Events
 INSERT INTO events (id, version, created_at, updated_at, title, description, event_date, location, organizer_id, image_url, category, attendees_count, active)
