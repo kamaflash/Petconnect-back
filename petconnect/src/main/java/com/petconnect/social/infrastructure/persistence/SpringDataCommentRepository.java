@@ -20,6 +20,13 @@ public interface SpringDataCommentRepository extends JpaRepository<Comment, UUID
 
     boolean existsByIdAndUserId(UUID id, UUID userId);
 
-    @Query("SELECT c FROM Comment c WHERE c.targetId = :targetId AND c.targetType = :targetType AND c.active = true ORDER BY c.createdAt DESC")
+    @Query("SELECT c FROM Comment c WHERE c.targetId = :targetId AND c.targetType = :targetType AND c.parentId IS NULL AND c.active = true ORDER BY c.createdAt ASC")
+    List<Comment> findTopLevelCommentsByTarget(@Param("targetId") UUID targetId,
+            @Param("targetType") String targetType);
+
+    @Query("SELECT c FROM Comment c WHERE c.parentId = :parentId AND c.active = true ORDER BY c.createdAt ASC")
+    List<Comment> findRepliesByParentId(@Param("parentId") UUID parentId);
+
+    @Query("SELECT c FROM Comment c WHERE c.targetId = :targetId AND c.targetType = :targetType ORDER BY c.createdAt ASC")
     List<Comment> findCommentsByTarget(@Param("targetId") UUID targetId, @Param("targetType") String targetType);
 }

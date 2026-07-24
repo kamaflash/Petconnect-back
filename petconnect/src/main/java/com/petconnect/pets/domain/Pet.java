@@ -52,6 +52,9 @@ public class Pet extends BaseEntity {
     @Column(nullable = false)
     private boolean active;
 
+    @Column(nullable = false)
+    private boolean availableForAdoption;
+
     @Column(length = 100)
     private String microchipId;
 
@@ -158,6 +161,7 @@ public class Pet extends BaseEntity {
         this.name = name;
         this.species = species;
         this.active = true;
+        this.availableForAdoption = false;
     }
 
     public void updateDetails(String name, String breed, LocalDate dateOfBirth, String gender,
@@ -440,5 +444,13 @@ public class Pet extends BaseEntity {
 
     public LocalDate getLostDate() {
         return lostDate;
+    }
+
+    public boolean isAvailableForAdoption() {
+        return availableForAdoption;
+    }
+
+    public void setAvailableForAdoption(boolean availableForAdoption) {
+        this.availableForAdoption = availableForAdoption;
     }
 }

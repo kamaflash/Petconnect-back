@@ -58,7 +58,12 @@ public class UserProfileController {
                 profile.getCountry(),
                 profile.isProfilePublic(),
                 profile.isNotificationsEnabled(),
-                profile.getProfileType()));
+                profile.getProfileType(),
+                profile.getSpecialty(),
+                profile.getLicenseNumber(),
+                profile.getCharityNumber(),
+                profile.getStoreName(),
+                profile.getWebsite()));
     }
 
     @GetMapping("/by-auth/{authUserId}")

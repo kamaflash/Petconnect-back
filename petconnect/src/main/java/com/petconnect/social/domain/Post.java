@@ -20,6 +20,9 @@ public class Post extends BaseEntity {
     @Column(name = "caption", length = 1000)
     private String caption;
 
+    @Column(name = "tags", length = 2000)
+    private String tags;
+
     @Column(name = "likes_count", nullable = false)
     private int likesCount;
 
@@ -38,6 +41,18 @@ public class Post extends BaseEntity {
         this.authorId = authorId;
         this.imageUrl = imageUrl;
         this.caption = caption;
+        this.tags = "";
+        this.likesCount = 0;
+        this.commentsCount = 0;
+        this.active = true;
+    }
+
+    public Post(UUID authorId, String imageUrl, String caption, String tags) {
+        super();
+        this.authorId = authorId;
+        this.imageUrl = imageUrl;
+        this.caption = caption;
+        this.tags = tags;
         this.likesCount = 0;
         this.commentsCount = 0;
         this.active = true;
@@ -69,6 +84,14 @@ public class Post extends BaseEntity {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public void setTags(String tags) {
+        this.tags = tags;
+    }
+
+    public String getTags() {
+        return tags;
     }
 
     public void softDelete() {

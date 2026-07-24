@@ -27,4 +27,8 @@ public interface CommentRepository {
     void delete(Comment comment);
 
     List<Comment> findCommentsByTarget(UUID targetId, String targetType);
+
+    List<Comment> findTopLevelCommentsByTarget(UUID targetId, String targetType);
+
+    List<Comment> findRepliesByParentId(UUID parentId);
 }

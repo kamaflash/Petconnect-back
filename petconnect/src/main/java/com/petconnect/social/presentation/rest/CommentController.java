@@ -1,6 +1,7 @@
 package com.petconnect.social.presentation.rest;
 
 import com.petconnect.social.domain.Comment;
+import com.petconnect.social.domain.Post;
 import com.petconnect.social.domain.repositories.CommentRepository;
 import com.petconnect.social.domain.repositories.PostRepository;
 import com.petconnect.users.domain.UserProfile;
@@ -11,9 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,8 +41,8 @@ public class CommentController {
 
     @PostMapping
     public ResponseEntity<CommentResponse> createComment(@RequestBody CreateCommentRequest request) {
-        log.info("POST /api/v1/social/comments - userId: {}, targetId: {}, targetType: {}",
-                request.userId(), request.targetId(), request.targetType());
+        log.info("POST /api/v1/social/comments - userId: {}, targetId: {}, targetType: {}, parentId: {}",
+                request.userId(), request.targetId(), request.targetType(), request.parentId());
 
         // Validate content
         if (request.content() == null || request.content().trim().isEmpty()) {
@@ -54,27 +53,39 @@ public class CommentController {
             return ResponseEntity.badRequest().build();
         }
 
-        // Create comment
-        Comment comment = new Comment(
-                request.userId(),
-                request.targetId(),
-                request.targetType(),
-                request.content().trim());
+        // Create comment (with optional parentId for replies)
+        Comment comment;
+        if (request.parentId() != null) {
+            comment = new Comment(
+                    request.userId(),
+                    request.targetId(),
+                    request.targetType(),
+                    request.content().trim(),
+                    request.parentId());
+        } else {
+            comment = new Comment(
+                    request.userId(),
+                    request.targetId(),
+                    request.targetType(),
+                    request.content().trim());
+        }
 
         Comment saved = commentRepository.save(comment);
         log.info("Comment created with id: {}", saved.getId());
 
-        // Update comments count on target (e.g., post)
-        updateCommentsCount(request.targetId(), request.targetType(), 1);
+        // Update comments count on target (e.g., post) - only for top-level comments
+        if (request.parentId() == null) {
+            updateCommentsCount(request.targetId(), request.targetType(), 1);
+        }
 
-        // Get user profile for response (optional - user might not have profile yet)
+        // Get user profile for response
         Optional<UserProfile> userProfile = userProfileRepository.findByAuthUserId(request.userId());
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CommentResponse.fromDomain(saved, userProfile.orElse(null)));
     }
 
-    // ========== GET COMMENTS ==========
+    // ========== GET COMMENTS (top-level with replies) ==========
 
     @GetMapping("/{targetType}/{targetId}")
     public ResponseEntity<List<CommentResponse>> getComments(
@@ -82,15 +93,55 @@ public class CommentController {
             @PathVariable UUID targetId) {
         log.debug("GET /api/v1/social/comments/{}/{}", targetType, targetId);
 
-        List<Comment> comments = commentRepository
-                .findByTargetIdAndTargetTypeAndActiveTrueOrderByCreatedAtAsc(targetId, targetType);
+        // Get all top-level comments
+        List<Comment> topLevelComments = commentRepository
+                .findTopLevelCommentsByTarget(targetId, targetType);
 
-        List<CommentResponse> response = comments.stream()
+        // Build response with replies for each top-level comment
+        List<CommentResponse> response = topLevelComments.stream()
                 .map(comment -> {
                     Optional<UserProfile> userProfile = userProfileRepository
                             .findByAuthUserId(comment.getUserId());
-                    return userProfile
+                    CommentResponse cr = userProfile
                             .map(profile -> CommentResponse.fromDomain(comment, profile))
+                            .orElse(null);
+                    if (cr != null) {
+                        // Load replies for this comment
+                        List<Comment> replies = commentRepository.findRepliesByParentId(comment.getId());
+                        List<CommentResponse> replyResponses = replies.stream()
+                                .map(reply -> {
+                                    Optional<UserProfile> replyProfile = userProfileRepository
+                                            .findByAuthUserId(reply.getUserId());
+                                    return replyProfile
+                                            .map(profile -> CommentResponse.fromDomain(reply, profile))
+                                            .orElse(null);
+                                })
+                                .filter(java.util.Objects::nonNull)
+                                .collect(Collectors.toList());
+                        cr = cr.withReplies(replyResponses);
+                    }
+                    return cr;
+                })
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
+    }
+
+    // ========== GET REPLIES BY PARENT ID ==========
+
+    @GetMapping("/{commentId}/replies")
+    public ResponseEntity<List<CommentResponse>> getReplies(@PathVariable UUID commentId) {
+        log.debug("GET /api/v1/social/comments/{}/replies", commentId);
+
+        List<Comment> replies = commentRepository.findRepliesByParentId(commentId);
+
+        List<CommentResponse> response = replies.stream()
+                .map(reply -> {
+                    Optional<UserProfile> userProfile = userProfileRepository
+                            .findByAuthUserId(reply.getUserId());
+                    return userProfile
+                            .map(profile -> CommentResponse.fromDomain(reply, profile))
                             .orElse(null);
                 })
                 .filter(java.util.Objects::nonNull)
@@ -152,8 +203,18 @@ public class CommentController {
 
         Comment comment = commentOpt.get();
 
-        // Validate user is the author
-        if (!comment.getUserId().equals(userId)) {
+        // Allow deletion if user is the comment author OR the post owner
+        boolean isCommentAuthor = comment.getUserId().equals(userId);
+        boolean isPostOwner = false;
+
+        if ("POST".equalsIgnoreCase(comment.getTargetType())) {
+            Optional<Post> postOpt = postRepository.findById(comment.getTargetId());
+            if (postOpt.isPresent()) {
+                isPostOwner = postOpt.get().getAuthorId().equals(userId);
+            }
+        }
+
+        if (!isCommentAuthor && !isPostOwner) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -161,8 +222,10 @@ public class CommentController {
         comment.softDelete();
         commentRepository.save(comment);
 
-        // Update comments count
-        updateCommentsCount(comment.getTargetId(), comment.getTargetType(), -1);
+        // Update comments count on target - only for top-level comments
+        if (comment.getParentId() == null) {
+            updateCommentsCount(comment.getTargetId(), comment.getTargetType(), -1);
+        }
 
         return ResponseEntity.noContent().build();
     }
@@ -202,12 +265,11 @@ public class CommentController {
                 postRepository.save(post);
             });
         }
-        // Future: Add support for STORY, EVENT, PHOTO, PROFILE
     }
 
     // ========== DTOs ==========
 
-    public record CreateCommentRequest(UUID userId, UUID targetId, String targetType, String content) {
+    public record CreateCommentRequest(UUID userId, UUID targetId, String targetType, String content, UUID parentId) {
     }
 
     public record UpdateCommentRequest(UUID userId, String content) {
@@ -222,8 +284,11 @@ public class CommentController {
             String authorFirstName,
             String authorLastName,
             String authorAvatarUrl,
-            String createdAt) {
+            String createdAt,
+            String parentId,
+            List<CommentResponse> replies) {
         public static CommentResponse fromDomain(Comment comment, UserProfile author) {
+            String parentIdStr = comment.getParentId() != null ? comment.getParentId().toString() : null;
             if (author == null) {
                 return new CommentResponse(
                         comment.getId().toString(),
@@ -234,7 +299,9 @@ public class CommentController {
                         "Usuario",
                         "",
                         "",
-                        comment.getCreatedAt().toString());
+                        comment.getCreatedAt().toString(),
+                        parentIdStr,
+                        List.of());
             }
             return new CommentResponse(
                     comment.getId().toString(),
@@ -245,7 +312,16 @@ public class CommentController {
                     author.getFirstName(),
                     author.getLastName(),
                     author.getAvatarUrl(),
-                    comment.getCreatedAt().toString());
+                    comment.getCreatedAt().toString(),
+                    parentIdStr,
+                    List.of());
+        }
+
+        public CommentResponse withReplies(List<CommentResponse> replies) {
+            return new CommentResponse(
+                    this.id, this.userId, this.targetId, this.targetType,
+                    this.content, this.authorFirstName, this.authorLastName,
+                    this.authorAvatarUrl, this.createdAt, this.parentId, replies);
         }
     }
 }

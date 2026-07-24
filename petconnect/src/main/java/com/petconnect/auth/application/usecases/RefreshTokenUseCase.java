@@ -73,7 +73,12 @@ public class RefreshTokenUseCase {
                         profile.getCountry(),
                         profile.isProfilePublic(),
                         profile.isNotificationsEnabled(),
-                        profile.getProfileType()))
+                        profile.getProfileType(),
+                        profile.getSpecialty(),
+                        profile.getLicenseNumber(),
+                        profile.getCharityNumber(),
+                        profile.getStoreName(),
+                        profile.getWebsite()))
                 .orElse(null);
 
         return new AuthResponse(

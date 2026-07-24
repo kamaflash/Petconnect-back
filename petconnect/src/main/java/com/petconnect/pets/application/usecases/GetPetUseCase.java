@@ -66,6 +66,7 @@ public class GetPetUseCase {
                 pet.getSpecialNeeds(),
                 pet.getLastKnownLocation(),
                 pet.isLost(),
-                pet.getLostDate());
+                pet.getLostDate(),
+                pet.isAvailableForAdoption());
     }
 }

@@ -5,8 +5,10 @@ import com.petconnect.shared.domain.Like.TargetType;
 import com.petconnect.shared.domain.repositories.LikeRepository;
 import com.petconnect.shared.infrastructure.services.CloudinaryService;
 import com.petconnect.social.domain.Post;
+import com.petconnect.social.domain.TrendingTopic;
 import com.petconnect.social.domain.repositories.PostRepository;
 import com.petconnect.social.domain.repositories.FollowRepository;
+import com.petconnect.social.infrastructure.persistence.SpringDataTrendingTopicRepository;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.petconnect.users.domain.UserProfile;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,17 +36,20 @@ public class PostController {
     private final CloudinaryService cloudinaryService;
     private final LikeRepository likeRepository;
     private final FollowRepository followRepository;
+    private final SpringDataTrendingTopicRepository trendingTopicRepository;
 
     public PostController(PostRepository postRepository,
             UserProfileRepository userProfileRepository,
             @Autowired(required = false) CloudinaryService cloudinaryService,
             LikeRepository likeRepository,
-            FollowRepository followRepository) {
+            FollowRepository followRepository,
+            SpringDataTrendingTopicRepository trendingTopicRepository) {
         this.postRepository = postRepository;
         this.userProfileRepository = userProfileRepository;
         this.cloudinaryService = cloudinaryService;
         this.likeRepository = likeRepository;
         this.followRepository = followRepository;
+        this.trendingTopicRepository = trendingTopicRepository;
     }
 
     @GetMapping("/posts")
@@ -70,8 +76,9 @@ public class PostController {
     public ResponseEntity<Post> createPost(
             @RequestPart("authorId") String authorId,
             @RequestPart("caption") String caption,
+            @RequestPart(value = "tags", required = false) String tags,
             @RequestPart(value = "image", required = false) MultipartFile image) {
-        log.info("POST /api/v1/social/posts - authorId: {}, caption: {}", authorId, caption);
+        log.info("POST /api/v1/social/posts - authorId: {}, caption: {}, tags: {}", authorId, caption, tags);
 
         if (authorId == null || authorId.trim().isEmpty()) {
             log.error("authorId is null or empty");
@@ -98,10 +105,44 @@ public class PostController {
         }
 
         try {
-            Post post = new Post(authorUuid, imageUrl, caption);
+            // Validate and process tags
+            String processedTags = "";
+            if (tags != null && !tags.trim().isEmpty()) {
+                processedTags = Arrays.stream(tags.split(","))
+                        .map(String::trim)
+                        .filter(t -> !t.isEmpty())
+                        .peek(t -> {
+                            if (!t.startsWith("#") && !t.startsWith("@")) {
+                                throw new IllegalArgumentException("Tag must start with # or @: " + t);
+                            }
+                        })
+                        .collect(Collectors.joining(","));
+
+                // Update or create TrendingTopic for each tag
+                if (!processedTags.isEmpty()) {
+                    String[] tagArray = processedTags.split(",");
+                    for (String tag : tagArray) {
+                        String trimmedTag = tag.trim();
+                        if (!trimmedTag.isEmpty()) {
+                            Optional<TrendingTopic> existing = trendingTopicRepository.findByName(trimmedTag);
+                            if (existing.isPresent()) {
+                                existing.get().incrementPostsCount();
+                                trendingTopicRepository.save(existing.get());
+                            } else {
+                                trendingTopicRepository.save(new TrendingTopic(trimmedTag, 1));
+                            }
+                        }
+                    }
+                }
+            }
+
+            Post post = new Post(authorUuid, imageUrl, caption, processedTags);
             Post saved = postRepository.save(post);
-            log.info("Post saved with id: {}", saved.getId());
+            log.info("Post saved with id: {}, tags: {}", saved.getId(), saved.getTags());
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid tag format: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             log.error("Error creating post", e);
             throw e;
@@ -201,11 +242,32 @@ public class PostController {
         List<Post> posts = postRepository.findByAuthorIdIn(followingIds);
         log.info("Found {} posts for user {}", posts.size(), userId);
 
-        // Log each post
-        for (Post post : posts) {
-            log.info("Post: id={}, authorId={}, active={}", post.getId(), post.getAuthorId(), post.isActive());
+        // If no posts found (user doesn't follow anyone or no posts from followed
+        // users),
+        // return all active posts as fallback
+        if (posts.isEmpty()) {
+            log.info("No posts found for followed users, returning all active posts");
+            posts = postRepository.findAll().stream()
+                    .filter(Post::isActive)
+                    .collect(Collectors.toList());
+            log.info("Returning {} active posts as fallback", posts.size());
         }
 
+        return ResponseEntity.ok(posts);
+    }
+
+    // ========== PUBLIC FEED - ALL POSTS ==========
+
+    @GetMapping("/posts/feed")
+    public ResponseEntity<List<Post>> getPublicFeed() {
+        log.debug("GET /api/v1/social/posts/feed");
+
+        // Return all active posts for public feed (social-page)
+        List<Post> posts = postRepository.findAll().stream()
+                .filter(Post::isActive)
+                .collect(Collectors.toList());
+
+        log.info("Returning {} active posts for public feed", posts.size());
         return ResponseEntity.ok(posts);
     }
 

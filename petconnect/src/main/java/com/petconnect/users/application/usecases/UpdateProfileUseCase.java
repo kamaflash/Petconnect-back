@@ -55,6 +55,12 @@ public class UpdateProfileUseCase {
                     data.bio(),
                     data.dateOfBirth());
             profile.updateLocation(data.city(), data.country());
+            profile.updateTypeSpecificFields(
+                    data.specialty(),
+                    data.licenseNumber(),
+                    data.charityNumber(),
+                    data.storeName(),
+                    data.website());
         }
 
         return userProfileRepository.save(profile);

@@ -35,18 +35,21 @@ public class PetController {
     private final UpdatePetUseCase updatePetUseCase;
     private final com.petconnect.pets.domain.repositories.PetRepository petRepository;
     private final UserProfileRepository userProfileRepository;
+    private final com.petconnect.home.domain.repositories.AdoptionRepository adoptionRepository;
 
     public PetController(
             CreatePetUseCase createPetUseCase,
             GetPetUseCase getPetUseCase,
             UpdatePetUseCase updatePetUseCase,
             com.petconnect.pets.domain.repositories.PetRepository petRepository,
-            UserProfileRepository userProfileRepository) {
+            UserProfileRepository userProfileRepository,
+            com.petconnect.home.domain.repositories.AdoptionRepository adoptionRepository) {
         this.createPetUseCase = createPetUseCase;
         this.getPetUseCase = getPetUseCase;
         this.updatePetUseCase = updatePetUseCase;
         this.petRepository = petRepository;
         this.userProfileRepository = userProfileRepository;
+        this.adoptionRepository = adoptionRepository;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -199,7 +202,8 @@ public class PetController {
                         pet.getSpecialNeeds(),
                         pet.getLastKnownLocation(),
                         pet.isLost(),
-                        pet.getLostDate()))
+                        pet.getLostDate(),
+                        pet.isAvailableForAdoption()))
                 .toList();
         return ResponseEntity.ok(responses);
     }
@@ -210,6 +214,98 @@ public class PetController {
             @Valid @RequestBody UpdatePetRequest request) {
         log.debug("PUT /api/v1/pets/{}", petId);
         var response = updatePetUseCase.execute(petId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{petId}/adoption-status")
+    @Transactional
+    public ResponseEntity<PetResponse> toggleAdoptionStatus(
+            Authentication authentication,
+            @PathVariable UUID petId,
+            @RequestParam boolean availableForAdoption) {
+        log.debug("PATCH /api/v1/pets/{}/adoption-status - available={}", petId, availableForAdoption);
+
+        // Verify the user is the owner
+        UUID currentUserId = getUserId(authentication);
+        var pet = petRepository.findById(petId)
+                .orElseThrow(() -> new RuntimeException("Mascota no encontrada"));
+
+        if (!pet.getOwnerId().equals(currentUserId)) {
+            throw new RuntimeException("No tienes permiso para modificar esta mascota");
+        }
+
+        pet.setAvailableForAdoption(availableForAdoption);
+        petRepository.save(pet);
+
+        // Create or delete adoption record
+        if (availableForAdoption) {
+            // Create adoption record if it doesn't exist
+            var existingAdoption = adoptionRepository.findByPetIdAndStatus(petId, "AVAILABLE");
+            if (existingAdoption.isEmpty()) {
+                var adoption = new com.petconnect.home.domain.Adoption(
+                        null,
+                        petId,
+                        pet.getName(),
+                        pet.getBreed(),
+                        pet.getAvatarUrl(),
+                        "AVAILABLE",
+                        java.time.LocalDateTime.now());
+                adoptionRepository.save(adoption);
+            }
+        } else {
+            // Delete adoption record if exists
+            adoptionRepository.findByPetIdAndStatus(petId, "AVAILABLE")
+                    .ifPresent(adoptionRepository::delete);
+        }
+
+        // Convert to response
+        var response = new PetResponse(
+                pet.getId(),
+                pet.getOwnerId(),
+                pet.getName(),
+                pet.getSpecies().name(),
+                pet.getBreed(),
+                pet.getDateOfBirth(),
+                pet.getGender(),
+                pet.getBio(),
+                pet.getAvatarUrl(),
+                pet.getImageUrls(),
+                pet.getWeight(),
+                pet.getWeightUnit(),
+                pet.isActive(),
+                pet.getMicrochipId(),
+                pet.getColor(),
+                pet.getBloodType(),
+                pet.getAllergies(),
+                pet.getMedicalConditions(),
+                pet.getVetName(),
+                pet.getVetPhone(),
+                pet.getVetAddress(),
+                pet.getLastVaccinationDate(),
+                pet.getNextVaccinationDate(),
+                pet.getLastVetVisit(),
+                pet.getInsuranceProvider(),
+                pet.getInsurancePolicyNumber(),
+                pet.getEmergencyContact(),
+                pet.getEmergencyPhone(),
+                pet.getAdoptionDate(),
+                pet.getAdoptionCenter(),
+                pet.getRegistrationNumber(),
+                pet.getLicenseNumber(),
+                pet.getLicenseExpiryDate(),
+                pet.isSpayedNeutered(),
+                pet.getSpayedNeuteredDate(),
+                pet.getTemperament(),
+                pet.getEnergyLevel(),
+                pet.getTrainingLevel(),
+                pet.getFavoriteActivities(),
+                pet.getFavoriteFood(),
+                pet.getSpecialNeeds(),
+                pet.getLastKnownLocation(),
+                pet.isLost(),
+                pet.getLostDate(),
+                pet.isAvailableForAdoption());
+
         return ResponseEntity.ok(response);
     }
 

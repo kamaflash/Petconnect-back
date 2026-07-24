@@ -165,6 +165,7 @@ public class CreatePetUseCase {
                 pet.getSpecialNeeds(),
                 pet.getLastKnownLocation(),
                 pet.isLost(),
-                pet.getLostDate());
+                pet.getLostDate(),
+                pet.isAvailableForAdoption());
     }
 }

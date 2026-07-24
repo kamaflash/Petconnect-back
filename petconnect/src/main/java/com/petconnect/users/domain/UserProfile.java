@@ -50,6 +50,22 @@ public class UserProfile extends BaseEntity {
     @Column(nullable = false, length = 20)
     private String profileType;
 
+    // Campos específicos por tipo de perfil
+    @Column(length = 100)
+    private String specialty; // Para vet y trainer
+
+    @Column(length = 50)
+    private String licenseNumber; // Para vet
+
+    @Column(length = 100)
+    private String charityNumber; // Para shelter
+
+    @Column(length = 100)
+    private String storeName; // Para seller
+
+    @Column(length = 255)
+    private String website;
+
     protected UserProfile() {
         super();
     }
@@ -72,6 +88,14 @@ public class UserProfile extends BaseEntity {
         this.phone = phone;
         this.bio = bio;
         this.dateOfBirth = dateOfBirth;
+    }
+
+    public void updateTypeSpecificFields(String specialty, String licenseNumber, String charityNumber, String storeName, String website) {
+        this.specialty = specialty;
+        this.licenseNumber = licenseNumber;
+        this.charityNumber = charityNumber;
+        this.storeName = storeName;
+        this.website = website;
     }
 
     public void updateLocation(String city, String country) {
@@ -145,5 +169,25 @@ public class UserProfile extends BaseEntity {
 
     public String getProfileType() {
         return profileType;
+    }
+
+    public String getSpecialty() {
+        return specialty;
+    }
+
+    public String getLicenseNumber() {
+        return licenseNumber;
+    }
+
+    public String getCharityNumber() {
+        return charityNumber;
+    }
+
+    public String getStoreName() {
+        return storeName;
+    }
+
+    public String getWebsite() {
+        return website;
     }
 }

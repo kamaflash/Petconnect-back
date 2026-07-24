@@ -11,6 +11,9 @@ import java.util.UUID;
 @Table(name = "adoptions")
 public class Adoption extends BaseEntity {
 
+    @Column(name = "pet_id", nullable = false)
+    private UUID petId;
+
     @Column(name = "pet_name", nullable = false)
     private String name;
 
@@ -35,12 +38,22 @@ public class Adoption extends BaseEntity {
         this.status = "AVAILABLE";
     }
 
-    public Adoption(UUID id, String name, String breed, String image, String status, LocalDateTime createdAt) {
+    public Adoption(UUID id, UUID petId, String name, String breed, String image, String status,
+            LocalDateTime createdAt) {
         super(id, createdAt);
+        this.petId = petId;
         this.name = name;
         this.breed = breed;
         this.image = image;
         this.status = status;
+    }
+
+    public UUID getPetId() {
+        return petId;
+    }
+
+    public void setPetId(UUID petId) {
+        this.petId = petId;
     }
 
     public String getName() {

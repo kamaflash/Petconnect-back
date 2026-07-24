@@ -94,7 +94,12 @@ public class RegisterUseCase {
                                 savedProfile.getCountry(),
                                 savedProfile.isProfilePublic(),
                                 savedProfile.isNotificationsEnabled(),
-                                savedProfile.getProfileType());
+                                savedProfile.getProfileType(),
+                                savedProfile.getSpecialty(),
+                                savedProfile.getLicenseNumber(),
+                                savedProfile.getCharityNumber(),
+                                savedProfile.getStoreName(),
+                                savedProfile.getWebsite());
 
                 return new AuthResponse(
                                 savedUser.getId(),

@@ -82,7 +82,12 @@ public class LoginUseCase {
                         profile.getCountry(),
                         profile.isProfilePublic(),
                         profile.isNotificationsEnabled(),
-                        profile.getProfileType()))
+                        profile.getProfileType(),
+                        profile.getSpecialty(),
+                        profile.getLicenseNumber(),
+                        profile.getCharityNumber(),
+                        profile.getStoreName(),
+                        profile.getWebsite()))
                 .orElse(null);
 
         log.info("Login successful: userId={}, email={}", authUser.getId(), authUser.getEmail());

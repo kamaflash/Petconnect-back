@@ -29,6 +29,10 @@ public class TrendingTopic extends BaseEntity {
         this.active = true;
     }
 
+    public void incrementPostsCount() {
+        this.postsCount++;
+    }
+
     public String getName() {
         return name;
     }

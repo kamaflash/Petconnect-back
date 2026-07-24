@@ -1,10 +1,10 @@
 package com.petconnect.home.presentation.rest;
 
 import com.petconnect.home.application.HomeService;
+import com.petconnect.home.application.dto.AdoptionResponse;
 import com.petconnect.home.domain.Suggestion;
 import com.petconnect.home.domain.MarketplacePromo;
 import com.petconnect.home.domain.VetService;
-import com.petconnect.home.domain.Adoption;
 import com.petconnect.home.domain.Achievement;
 import com.petconnect.home.domain.UserLevel;
 import com.petconnect.social.domain.Story;
@@ -54,7 +54,7 @@ public class HomeController {
     }
 
     @GetMapping("/adoptions")
-    public ResponseEntity<List<Adoption>> getNewAdoptions() {
+    public ResponseEntity<List<AdoptionResponse>> getNewAdoptions() {
         log.debug("GET /api/v1/home/adoptions");
         return ResponseEntity.ok(homeService.getNewAdoptions());
     }
