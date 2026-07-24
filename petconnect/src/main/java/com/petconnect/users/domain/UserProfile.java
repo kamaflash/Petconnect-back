@@ -35,11 +35,12 @@ public class UserProfile extends BaseEntity {
 
     private LocalDate dateOfBirth;
 
-    @Column(length = 100)
-    private String city;
+    @Column(length = 500)
+    private String location;
 
-    @Column(length = 100)
-    private String country;
+    private Double latitude;
+
+    private Double longitude;
 
     @Column(nullable = false)
     private boolean profilePublic;
@@ -90,7 +91,8 @@ public class UserProfile extends BaseEntity {
         this.dateOfBirth = dateOfBirth;
     }
 
-    public void updateTypeSpecificFields(String specialty, String licenseNumber, String charityNumber, String storeName, String website) {
+    public void updateTypeSpecificFields(String specialty, String licenseNumber, String charityNumber, String storeName,
+            String website) {
         this.specialty = specialty;
         this.licenseNumber = licenseNumber;
         this.charityNumber = charityNumber;
@@ -98,9 +100,10 @@ public class UserProfile extends BaseEntity {
         this.website = website;
     }
 
-    public void updateLocation(String city, String country) {
-        this.city = city;
-        this.country = country;
+    public void updateLocation(String location, Double latitude, Double longitude) {
+        this.location = location;
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     public void updateAvatar(String avatarUrl) {
@@ -151,12 +154,16 @@ public class UserProfile extends BaseEntity {
         return dateOfBirth;
     }
 
-    public String getCity() {
-        return city;
+    public String getLocation() {
+        return location;
     }
 
-    public String getCountry() {
-        return country;
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
     }
 
     public boolean isProfilePublic() {

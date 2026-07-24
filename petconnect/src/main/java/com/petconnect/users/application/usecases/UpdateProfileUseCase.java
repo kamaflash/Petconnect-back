@@ -54,7 +54,7 @@ public class UpdateProfileUseCase {
                     data.phone(),
                     data.bio(),
                     data.dateOfBirth());
-            profile.updateLocation(data.city(), data.country());
+            profile.updateLocation(data.location(), data.latitude(), data.longitude());
             profile.updateTypeSpecificFields(
                     data.specialty(),
                     data.licenseNumber(),
