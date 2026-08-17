@@ -71,6 +71,18 @@ public class NotificationService {
                 "preview", preview));
     }
 
+    public void notifyAdoptionRequest(UUID ownerId, String adopterName, String petName) {
+        sendToUser(ownerId, "ADOPTION_REQUEST", Map.of(
+                "adopterName", adopterName,
+                "petName", petName));
+    }
+
+    public void notifyAdoptionUpdate(UUID adopterId, String petName, String status) {
+        sendToUser(adopterId, "ADOPTION_UPDATE", Map.of(
+                "petName", petName,
+                "status", status));
+    }
+
     public void notifyAchievementUnlocked(UUID userId, String achievementName) {
         sendToUser(userId, "ACHIEVEMENT_UNLOCKED", Map.of(
                 "achievementName", achievementName));

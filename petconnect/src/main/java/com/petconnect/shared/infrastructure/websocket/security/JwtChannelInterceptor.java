@@ -1,5 +1,6 @@
 package com.petconnect.shared.infrastructure.websocket.security;
 
+import com.petconnect.shared.infrastructure.security.CustomUserDetails;
 import com.petconnect.shared.infrastructure.security.JwtService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -42,13 +43,25 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                 try {
                     String email = jwtService.extractEmailFromAccessToken(token);
                     if (email != null && jwtService.isAccessTokenValid(token)) {
-                        var userDetails = userDetailsService.loadUserByUsername(email);
+                        CustomUserDetails userDetails =
+                                (CustomUserDetails) userDetailsService.loadUserByUsername(email);
                         var authorities = userDetails.getAuthorities().stream()
                                 .map(authority -> new SimpleGrantedAuthority(authority.getAuthority()))
                                 .collect(Collectors.toList());
 
+                        // Registramos la sesión STOMP con nombre = userId para que
+                        // convertAndSendToUser(userId, ...) y las suscripciones
+                        // "/user/queue/..." coincidan. Si usáramos el email como nombre,
+                        // las notificaciones privadas (NEW_MESSAGE, social, etc.) no llegarían.
+                        CustomUserDetails sessionPrincipal = new CustomUserDetails(
+                                userDetails.getUserId(),
+                                userDetails.getUserId().toString(),
+                                userDetails.getPassword(),
+                                userDetails.isEnabled(),
+                                authorities);
+
                         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                                userDetails, null, authorities);
+                                sessionPrincipal, null, authorities);
                         accessor.setUser(auth);
 
                         log.info("WebSocket connection authenticated for user: {}", email);

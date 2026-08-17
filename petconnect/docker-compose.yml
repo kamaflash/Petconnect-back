@@ -1,5 +1,4 @@
-﻿version: '3.8'
-services:
+﻿services:
   postgres:
     image: postgres:16-alpine
     container_name: petconnect-postgres
@@ -31,11 +30,18 @@ services:
     container_name: petconnect-app
     env_file:
       - .env
+    environment:
+      # Override hosts when running inside the Docker network
+      # (env_file/.env uses 'localhost', which inside a container points to itself).
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/petconnect
+      REDIS_HOST: redis
     ports:
       - "8080:8080"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]

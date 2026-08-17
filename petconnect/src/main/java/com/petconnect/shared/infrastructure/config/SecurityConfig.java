@@ -48,6 +48,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/social/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/social/posts").permitAll()
+                        // WebSocket: el handshake HTTP no puede llevar cabecera Authorization
+                        // (el token viaja en el frame STOMP CONNECT). Permitimos el endpoint y
+                        // la autenticación se valida en el JwtChannelInterceptor.
+                        .requestMatchers("/ws", "/ws/**", "/sockjs/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())

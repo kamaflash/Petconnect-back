@@ -453,4 +453,12 @@ public class Pet extends BaseEntity {
     public void setAvailableForAdoption(boolean availableForAdoption) {
         this.availableForAdoption = availableForAdoption;
     }
+
+    public void setOwnerId(UUID ownerId) {
+        this.ownerId = ownerId;
+    }
+
+    public void setAdoptionDate(LocalDate adoptionDate) {
+        this.adoptionDate = adoptionDate;
+    }
 }
