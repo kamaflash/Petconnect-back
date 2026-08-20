@@ -18,7 +18,7 @@ pipeline {
             steps {
                 git branch: 'main',
                     url: 'git@github.com:kamaflash/Petconnect-back.git',
-                    sshagent: 'petconnect-github-ssh'
+                    credentialsId: 'petconnect-github-ssh'  // ← Cambié sshagent por credentialsId
             }
             post {
                 success {
@@ -45,7 +45,7 @@ pipeline {
                         subject: "PetConnect CI FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                         body: "El build falló. Revisa: ${env.BUILD_URL}",
                         to: 'tu-email@ejemplo.com'
-                    }
+                    )  // ← Cambié } por )
                 }
             }
         }
@@ -62,6 +62,9 @@ pipeline {
 
         // 4. (Opcional) Push a DockerHub
         stage('Push to DockerHub') {
+            when {
+                expression { return env.REGISTRY != '' }  // Solo si hay registro configurado
+            }
             steps {
                 script {
                     docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-creds') {
