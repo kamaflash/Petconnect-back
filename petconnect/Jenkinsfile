@@ -1,6 +1,19 @@
 pipeline {
     agent any
 
+    triggers {
+        // Dispara el build cuando GitHub avisa de un push (webhook).
+        // Solo reacciona ante pushes a 'main' (regexpFilter sobre $ref).
+        // Requiere el plugin 'Generic Webhook Trigger' en Jenkins.
+        GenericTrigger(
+            token: 'petconnect-main-webhook',
+            printContributedVariables: true,
+            printPostContent: true,
+            regexpFilterText: '$ref',
+            regexpFilterExpression: 'refs/heads/main'
+        )
+    }
+
     tools {
         maven 'maven'
         jdk 'jdk21'
