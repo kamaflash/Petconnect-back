@@ -13,12 +13,12 @@ pipeline {
     }
 
     stages {
-        // 1. Checkout del código
+        // 1. Checkout del código (ahora usa la credencial correcta)
         stage('Checkout') {
             steps {
                 git branch: 'main',
                     url: 'git@github.com:kamaflash/Petconnect-back.git',
-                    credentialsId: 'Pet-git-private'  // ← Cambié sshagent por credentialsId
+                    credentialsId: 'Pet-git-private'
             }
             post {
                 success {
@@ -30,10 +30,14 @@ pipeline {
             }
         }
 
-        // 2. Compilación y tests
+        // 2. Compilación y tests - CORREGIDO
         stage('Build & Test') {
             steps {
-                sh 'mvn -B -ntp clean verify'
+                script {
+                    dir('petconnect') {
+                        sh 'mvn -B -ntp clean verify'
+                    }
+                }
             }
             post {
                 success {
@@ -45,17 +49,19 @@ pipeline {
                         subject: "PetConnect CI FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                         body: "El build falló. Revisa: ${env.BUILD_URL}",
                         to: 'tu-email@ejemplo.com'
-                    )  // ← Cambié } por )
+                    )
                 }
             }
         }
 
-        // 3. Build de la imagen Docker
+        // 3. Build de la imagen Docker - CORREGIDO
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
-                    docker.build("${IMAGE_NAME}:latest")
+                    dir('petconnect') {
+                        docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
+                        docker.build("${IMAGE_NAME}:latest")
+                    }
                 }
             }
         }
@@ -63,7 +69,7 @@ pipeline {
         // 4. (Opcional) Push a DockerHub
         stage('Push to DockerHub') {
             when {
-                expression { return env.REGISTRY != '' }  // Solo si hay registro configurado
+                expression { return env.REGISTRY != '' }
             }
             steps {
                 script {
@@ -75,15 +81,16 @@ pipeline {
             }
         }
 
-        // 5. Despliegue con docker-compose
+        // 5. Despliegue con docker-compose - CORREGIDO
         stage('Deploy') {
             steps {
                 script {
-                    sh '''
-                        # Copiar la nueva imagen al entorno de despliegue
-                        docker-compose down
-                        docker-compose up -d --build
-                    '''
+                    dir('petconnect') {
+                        sh '''
+                            docker-compose down
+                            docker-compose up -d --build
+                        '''
+                    }
                 }
             }
         }
