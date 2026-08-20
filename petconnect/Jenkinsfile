@@ -18,7 +18,7 @@ pipeline {
             steps {
                 git branch: 'main',
                     url: 'git@github.com:kamaflash/Petconnect-back.git',
-                    credentialsId: 'Pet-git-private'
+                    credentialsId: 'user-primarykey'
             }
             post {
                 success {
