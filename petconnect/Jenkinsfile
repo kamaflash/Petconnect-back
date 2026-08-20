@@ -52,14 +52,19 @@ pipeline {
             }
         }
 
-        // 4. (Opcional) Push a DockerHub
+        // 4. (Opcional) Push a DockerHub. Solo corre cuando REGISTRY tenga un valor
+        //    no vacío (si está vacío definines que no subes a DockerHub).
         stage('Push to DockerHub') {
             when {
-                expression { return env.REGISTRY != '' }
+                expression {
+                    def reg = (env.REGISTRY ?: '').toString().trim()
+                    return reg != ''
+                }
             }
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-creds') {
+                    def reg = (env.REGISTRY ?: 'https://registry.hub.docker.com').toString()
+                    docker.withRegistry(reg, 'dockerhub-creds') {
                         docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
                         docker.image("${IMAGE_NAME}:latest").push()
                     }
