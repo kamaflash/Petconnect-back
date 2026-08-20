@@ -13,3 +13,12 @@ USER root
 RUN apt-get update \
     && apt-get install -y docker.io \
     && rm -rf /var/lib/apt/lists/*
+
+# Entrada: corrige permisos de las claves SSH montadas (/root/.ssh) antes de iniciar Jenkins.
+# Necesario porque al montar .ssh desde Windows los permisos llegan como 0777 y
+# OpenSSH los rechaza. Se define un ENTRYPOINT propio que ejecuta /usr/local/bin/jenkins.sh
+# del usuario jenkins tras ajustar los permisos.
+COPY entrypoint.sh /usr/local/bin/jenkins-entrypoint.sh
+RUN chmod +x /usr/local/bin/jenkins-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/jenkins-entrypoint.sh"]

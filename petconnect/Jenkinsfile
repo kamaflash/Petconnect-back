@@ -13,22 +13,8 @@ pipeline {
     }
 
     stages {
-        // 1. Checkout del código (ahora usa la credencial correcta)
-        stage('Checkout') {
-            steps {
-                git branch: 'main',
-                    url: 'git@github.com:kamaflash/Petconnect-back.git',
-                    credentialsId: 'user-primarykey'
-            }
-            post {
-                success {
-                    script {
-                        echo "Commit: ${GIT_COMMIT}"
-                        echo "Branch: ${GIT_BRANCH}"
-                    }
-                }
-            }
-        }
+        // El checkout del código ya lo hace Jenkins automáticamente al cargar
+        // el pipeline (Pipeline script from SCM). Sin stage manual redundante.
 
         // 2. Compilación y tests - CORREGIDO
         stage('Build & Test') {

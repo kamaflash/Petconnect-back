@@ -14,6 +14,7 @@ PORT="${PORT:-8080}"
 JNLP_PORT="${JNLP_PORT:-50000}"
 NO_RECREATE=0
 RESTART_OPT="--restart unless-stopped"
+SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -27,6 +28,8 @@ while [[ $# -gt 0 ]]; do
       PORT="$2"; shift 2 ;;
     --jnlp-port)
       JNLP_PORT="$2"; shift 2 ;;
+    --ssh-key)
+      SSH_KEY_PATH="$2"; shift 2 ;;
     --no-recreate)
       NO_RECREATE=1; shift ;;
     --no-restart)
@@ -56,6 +59,14 @@ if docker ps -a --filter "name=^jenkins$" --format '{{.Names}}' | grep -q jenkin
 fi
 
 echo "==> Levantando Jenkins en puerto $PORT (jnlp $JNLP_PORT)"
+SSH_MOUNT=""
+if [[ -d "$SSH_KEY_PATH" ]]; then
+  echo "    Montando SSH keys desde: $SSH_KEY_PATH"
+  SSH_MOUNT="-v \"$SSH_KEY_PATH:/root/.ssh\""
+else
+  echo "    Aviso: no se encontró .ssh en '$SSH_KEY_PATH'. Si usas credencial SSH en Jenkins, ignora."
+fi
+
 # shellcheck disable=SC2086
 run_cmd docker run -d $RESTART_OPT \
   --name jenkins \
@@ -64,6 +75,7 @@ run_cmd docker run -d $RESTART_OPT \
   -p "$JNLP_PORT:50000" \
   -v "jenkins_home:/var/jenkins_home" \
   -v "/var/run/docker.sock:/var/run/docker.sock" \
+  $SSH_MOUNT \
   "$IMAGE_FULL"
 
 echo "==> Verificando acceso al daemon Docker desde el contenedor..."

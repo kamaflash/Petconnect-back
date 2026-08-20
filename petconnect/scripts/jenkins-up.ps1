@@ -4,6 +4,7 @@
 #   .\scripts\jenkins-up.ps1 -Network jenkins-net -ImageName jenkins-with-docker
 #   .\scripts\jenkins-up.ps1 -Port 8080 -JnlpPort 50000
 #   .\scripts\jenkins-up.ps1 -NoRecreate     # no eliminar el contenedor existente
+#   .\scripts\jenkins-up.ps1 -SshKeyPath "$env:USERPROFILE\.ssh"   # montar SSH key del host
 
 param(
     [string]$ImageName = 'jenkins-with-docker',
@@ -11,6 +12,7 @@ param(
     [string]$Network    = 'jenkins-net',
     [int]$Port          = 8080,
     [int]$JnlpPort      = 50000,
+    [string]$SshKeyPath = "$env:USERPROFILE\.ssh",
     [switch]$NoRecreate,
     [switch]$NoRestart
 )
@@ -46,8 +48,18 @@ try {
 
     # 3. Levantar el contenedor Jenkins
     $restart = if ($NoRestart) { '' } else { '--restart unless-stopped' }
+
+    # Montar la carpeta .ssh del host para autenticar git por SSH (id_ed25519)
+    $containerSsh = ""
+    if ($SshKeyPath -and (Test-Path $SshKeyPath)) {
+        Write-Host "Montando SSH keys desde: $SshKeyPath" -ForegroundColor Green
+        $containerSsh = "-v ""${SshKeyPath}:/root/.ssh"""
+    } else {
+        Write-Host "Aviso: no se encontró .ssh en '$SshKeyPath'. Si usas credencial SSH en Jenkins, ignora." -ForegroundColor Yellow
+    }
+
     Write-Host "Levantando Jenkins en puerto $Port (jnlp $JnlpPort)" -ForegroundColor Green
-    Run-Command "docker run -d $restart --name jenkins --network $Network -p ${Port}:8080 -p ${JnlpPort}:50000 -v jenkins_home:/var/jenkins_home -v //var/run/docker.sock:/var/run/docker.sock $imageFull"
+    Run-Command "docker run -d $restart --name jenkins --network $Network -p ${Port}:8080 -p ${JnlpPort}:50000 -v jenkins_home:/var/jenkins_home -v //var/run/docker.sock:/var/run/docker.sock $containerSsh $imageFull"
 
     # 4. Verificación
     Write-Host "Verificando acceso al daemon Docker desde el contenedor..." -ForegroundColor Green
