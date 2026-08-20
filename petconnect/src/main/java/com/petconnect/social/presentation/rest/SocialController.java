@@ -2,6 +2,10 @@ package com.petconnect.social.presentation.rest;
 
 import com.petconnect.social.domain.*;
 import com.petconnect.social.infrastructure.persistence.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import com.petconnect.gamification.application.events.XpEvent;
+import com.petconnect.gamification.domain.ActionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +25,9 @@ public class SocialController {
     private final SpringDataFollowRepository followRepository;
     private final SpringDataNotificationRepository notificationRepository;
     private final SpringDataTrendingTopicRepository trendingTopicRepository;
+
+    @Autowired
+    private ApplicationEventPublisher applicationEventPublisher;
 
     public SocialController(
             SpringDataEventRepository eventRepository,
@@ -127,7 +134,9 @@ public class SocialController {
         if (followRepository.existsByFollowerIdAndFollowingId(follow.getFollowerId(), follow.getFollowingId())) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(followRepository.save(follow));
+        Follow saved = followRepository.save(follow);
+        publishGamification(ActionType.FOLLOW, follow.getFollowerId());
+        return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping("/follows/{followerId}/{followingId}")
@@ -179,5 +188,18 @@ public class SocialController {
     public ResponseEntity<List<TrendingTopic>> getTrendingTopics() {
         log.debug("GET /api/v1/social/trending");
         return ResponseEntity.ok(trendingTopicRepository.findByActiveTrueOrderByPostsCountDesc());
+    }
+
+    // ========== GAMIFICATION ==========
+
+    private void publishGamification(ActionType actionType, UUID userId) {
+        if (applicationEventPublisher == null) {
+            return;
+        }
+        try {
+            applicationEventPublisher.publishEvent(new XpEvent(userId, actionType));
+        } catch (Exception e) {
+            log.warn("No se pudo notificar XP de {} para el usuario {}", actionType, userId);
+        }
     }
 }

@@ -1,0 +1,88 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'maven'
+        jdk 'jdk21'
+    }
+
+    environment {
+        IMAGE_NAME = 'petconnect'
+        IMAGE_TAG  = "${env.GIT_COMMIT?.take(7) ?: 'latest'}"
+        REGISTRY   = ''  // Déjalo vacío si no subes a DockerHub
+    }
+
+    stages {
+        // 1. Checkout del código
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'git@github.com:kamaflash/Petconnect-back.git',
+                    sshagent: 'petconnect-github-ssh'
+            }
+            post {
+                success {
+                    script {
+                        echo "Commit: ${GIT_COMMIT}"
+                        echo "Branch: ${GIT_BRANCH}"
+                    }
+                }
+            }
+        }
+
+        // 2. Compilación y tests
+        stage('Build & Test') {
+            steps {
+                sh 'mvn -B -ntp clean verify'
+            }
+            post {
+                success {
+                    echo '✅ Build y tests completados'
+                }
+                failure {
+                    echo '❌ Falló el build o tests'
+                    emailext (
+                        subject: "PetConnect CI FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                        body: "El build falló. Revisa: ${env.BUILD_URL}",
+                        to: 'tu-email@ejemplo.com'
+                    }
+                }
+            }
+        }
+
+        // 3. Build de la imagen Docker
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
+                    docker.build("${IMAGE_NAME}:latest")
+                }
+            }
+        }
+
+        // 4. (Opcional) Push a DockerHub
+        stage('Push to DockerHub') {
+            steps {
+                script {
+                    docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-creds') {
+                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
+                        docker.image("${IMAGE_NAME}:latest").push()
+                    }
+                }
+            }
+        }
+
+        // 5. Despliegue con docker-compose
+        stage('Deploy') {
+            steps {
+                script {
+                    sh '''
+                        # Copiar la nueva imagen al entorno de despliegue
+                        docker-compose down
+                        docker-compose up -d --build
+                    '''
+                }
+            }
+        }
+    }
+}

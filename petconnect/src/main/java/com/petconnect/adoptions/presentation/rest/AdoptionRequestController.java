@@ -5,6 +5,10 @@ import com.petconnect.adoptions.application.dto.AdoptionHistoryResponse;
 import com.petconnect.adoptions.application.dto.AdoptionRequestResponse;
 import com.petconnect.adoptions.application.dto.CreateAdoptionRequest;
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import com.petconnect.gamification.application.events.XpEvent;
+import com.petconnect.gamification.domain.ActionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +26,9 @@ public class AdoptionRequestController {
 
     private final AdoptionRequestService adoptionRequestService;
 
+    @Autowired
+    private ApplicationEventPublisher applicationEventPublisher;
+
     public AdoptionRequestController(AdoptionRequestService adoptionRequestService) {
         this.adoptionRequestService = adoptionRequestService;
     }
@@ -32,7 +39,9 @@ public class AdoptionRequestController {
             @RequestBody CreateAdoptionRequest request) {
         log.debug("POST /api/v1/adoptions for pet {}", request.petId());
         UUID adopterId = getUserId(authentication);
-        return ResponseEntity.ok(adoptionRequestService.createRequest(adopterId, request));
+        var response = adoptionRequestService.createRequest(adopterId, request);
+        publishGamification(ActionType.ADOPTION_REQUESTED, adopterId);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/my-requests")
@@ -70,5 +79,18 @@ public class AdoptionRequestController {
             return userDetails.getUserId();
         }
         throw new IllegalStateException("User not authenticated");
+    }
+
+    // ========== GAMIFICATION ==========
+
+    private void publishGamification(ActionType actionType, UUID userId) {
+        if (applicationEventPublisher == null) {
+            return;
+        }
+        try {
+            applicationEventPublisher.publishEvent(new XpEvent(userId, actionType));
+        } catch (Exception e) {
+            log.warn("No se pudo notificar XP de {} para el usuario {}", actionType, userId);
+        }
     }
 }

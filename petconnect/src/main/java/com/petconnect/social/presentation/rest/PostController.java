@@ -13,7 +13,10 @@ import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
+import com.petconnect.gamification.application.events.XpEvent;
+import com.petconnect.gamification.domain.ActionType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,6 +40,9 @@ public class PostController {
     private final LikeRepository likeRepository;
     private final FollowRepository followRepository;
     private final SpringDataTrendingTopicRepository trendingTopicRepository;
+
+    @Autowired
+    private ApplicationEventPublisher applicationEventPublisher;
 
     public PostController(PostRepository postRepository,
             UserProfileRepository userProfileRepository,
@@ -139,6 +145,7 @@ public class PostController {
             Post post = new Post(authorUuid, imageUrl, caption, processedTags);
             Post saved = postRepository.save(post);
             log.info("Post saved with id: {}, tags: {}", saved.getId(), saved.getTags());
+            publishGamification(ActionType.GENERATE_POST, authorUuid);
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (IllegalArgumentException e) {
             log.error("Invalid tag format: {}", e.getMessage());
@@ -198,6 +205,7 @@ public class PostController {
                 .map(post -> {
                     post.incrementLikes();
                     Post saved = postRepository.save(post);
+                    publishGamification(ActionType.LIKE, userId);
                     return ResponseEntity.ok(new LikeResponse(true, "Liked successfully"));
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -269,6 +277,23 @@ public class PostController {
 
         log.info("Returning {} active posts for public feed", posts.size());
         return ResponseEntity.ok(posts);
+    }
+
+    // ========== GAMIFICATION ==========
+
+    /**
+     * Publica un evento de XP para el motor de gamificación. Nunca debe romper
+     * la acción principal aunque el módulo de gamificación falle.
+     */
+    private void publishGamification(ActionType actionType, UUID userId) {
+        if (applicationEventPublisher == null) {
+            return;
+        }
+        try {
+            applicationEventPublisher.publishEvent(new XpEvent(userId, actionType));
+        } catch (Exception e) {
+            log.warn("No se pudo notificar XP de {} para el usuario {}", actionType, userId);
+        }
     }
 
     // DTO for like response

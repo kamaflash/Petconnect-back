@@ -18,6 +18,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import com.petconnect.gamification.application.events.XpEvent;
+import com.petconnect.gamification.domain.ActionType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -37,6 +41,9 @@ public class PetController {
     private final UserProfileRepository userProfileRepository;
     private final com.petconnect.home.domain.repositories.AdoptionRepository adoptionRepository;
 
+    @Autowired
+    private ApplicationEventPublisher applicationEventPublisher;
+
     public PetController(
             CreatePetUseCase createPetUseCase,
             GetPetUseCase getPetUseCase,
@@ -50,6 +57,19 @@ public class PetController {
         this.petRepository = petRepository;
         this.userProfileRepository = userProfileRepository;
         this.adoptionRepository = adoptionRepository;
+    }
+
+    // ========== GAMIFICATION ==========
+
+    private void publishGamification(ActionType actionType, UUID userId) {
+        if (applicationEventPublisher == null) {
+            return;
+        }
+        try {
+            applicationEventPublisher.publishEvent(new XpEvent(userId, actionType));
+        } catch (Exception e) {
+            log.warn("No se pudo notificar XP de {} para el usuario {}", actionType, userId);
+        }
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -142,6 +162,7 @@ public class PetController {
                 specialNeeds);
 
         var response = createPetUseCase.execute(command);
+        publishGamification(ActionType.PET_REGISTERED, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

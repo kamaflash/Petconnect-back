@@ -10,7 +10,12 @@ import com.petconnect.auth.application.usecases.LoginUseCase;
 import com.petconnect.auth.application.usecases.LogoutUseCase;
 import com.petconnect.auth.application.usecases.RefreshTokenUseCase;
 import com.petconnect.auth.application.usecases.RegisterUseCase;
+import com.petconnect.auth.application.usecases.GoogleLoginUseCase;
+import com.petconnect.auth.application.dto.GoogleLoginRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import com.petconnect.gamification.application.events.XpEvent;
+import com.petconnect.gamification.domain.ActionType;
 import com.petconnect.auth.domain.valueobjects.Email;
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -26,6 +31,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -37,6 +44,11 @@ public class AuthController {
     private final RefreshTokenUseCase refreshTokenUseCase;
     @Autowired(required = false)
     private LogoutUseCase logoutUseCase;
+    @Autowired
+    private GoogleLoginUseCase googleLoginUseCase;
+
+    @Autowired
+    private ApplicationEventPublisher applicationEventPublisher;
 
     public AuthController(
             RegisterUseCase registerUseCase,
@@ -65,7 +77,14 @@ public class AuthController {
         log.debug("POST /api/v1/auth/login - email: {}", request.email());
         var command = new LoginCommand(new Email(request.email()), request.password());
         var response = loginUseCase.execute(command);
+        publishGamification(ActionType.DAILY_LOGIN, response.userId());
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request) {
+        log.debug("POST /api/v1/auth/google");
+        return ResponseEntity.ok(googleLoginUseCase.execute(request.idToken()));
     }
 
     @PostMapping("/refresh")
@@ -91,5 +110,18 @@ public class AuthController {
             logoutUseCase.execute(userDetails.getUserId(), accessToken);
         }
         return ResponseEntity.noContent().build();
+    }
+
+    // ========== GAMIFICATION ==========
+
+    private void publishGamification(ActionType actionType, UUID userId) {
+        if (applicationEventPublisher == null) {
+            return;
+        }
+        try {
+            applicationEventPublisher.publishEvent(new XpEvent(userId, actionType));
+        } catch (Exception e) {
+            log.warn("No se pudo notificar XP de {} para el usuario {}", actionType, userId);
+        }
     }
 }

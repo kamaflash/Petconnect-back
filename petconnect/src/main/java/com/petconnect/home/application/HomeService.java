@@ -7,10 +7,13 @@ import com.petconnect.pets.domain.repositories.PetRepository;
 import com.petconnect.social.domain.Story;
 import com.petconnect.social.domain.repositories.StoryRepository;
 import com.petconnect.home.domain.repositories.*;
+import com.petconnect.gamification.application.GamificationService;
+import com.petconnect.gamification.domain.AchievementState;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -24,6 +27,7 @@ public class HomeService {
         private final AchievementRepository achievementRepository;
         private final UserLevelRepository userLevelRepository;
         private final PetRepository petRepository;
+        private final GamificationService gamificationService;
 
         public HomeService(StoryRepository storyRepository,
                         SuggestionRepository suggestionRepository,
@@ -32,7 +36,8 @@ public class HomeService {
                         AdoptionRepository adoptionRepository,
                         AchievementRepository achievementRepository,
                         UserLevelRepository userLevelRepository,
-                        PetRepository petRepository) {
+                        PetRepository petRepository,
+                        GamificationService gamificationService) {
                 this.storyRepository = storyRepository;
                 this.suggestionRepository = suggestionRepository;
                 this.marketPromoRepository = marketPromoRepository;
@@ -41,6 +46,7 @@ public class HomeService {
                 this.achievementRepository = achievementRepository;
                 this.userLevelRepository = userLevelRepository;
                 this.petRepository = petRepository;
+                this.gamificationService = gamificationService;
         }
 
         public List<Story> getStories() {
@@ -115,12 +121,27 @@ public class HomeService {
                                 .toList();
         }
 
-        public List<Achievement> getUpcomingAchievements() {
-                return achievementRepository.findAll();
+        public List<Achievement> getUpcomingAchievements(UUID userId) {
+                if (userId == null) {
+                        return achievementRepository.findAll();
+                }
+                return gamificationService.getAchievements(userId).stream()
+                                .map(a -> new Achievement(
+                                                UUID.fromString(a.id()),
+                                                a.name(),
+                                                a.description(),
+                                                a.icon(),
+                                                a.progress(),
+                                                a.targetValue(),
+                                                a.state() == AchievementState.UNLOCKED || a.state() == AchievementState.CLAIMED))
+                                .toList();
         }
 
-        public UserLevel getUserLevel() {
-                return userLevelRepository.findFirstByOrderByIdDesc()
-                                .orElse(new UserLevel(12, 650, 1000));
+        public UserLevel getUserLevel(UUID userId) {
+                if (userId == null) {
+                        return new UserLevel(0, 0, 100);
+                }
+                var summary = gamificationService.getSummary(userId);
+                return new UserLevel(summary.level(), summary.currentLevelXp(), summary.xpToLevel());
         }
 }

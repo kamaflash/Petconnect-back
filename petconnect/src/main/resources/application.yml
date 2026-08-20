@@ -4,6 +4,10 @@ redis:
 websocket:
   enabled: true
 
+# Google Sign-In
+google:
+  client-id: ${GOOGLE_CLIENT_ID:859858948205-gl3cjmmbqkft29t5nn0bc5evqd32svsf.apps.googleusercontent.com}
+
 spring:
   application:
     name: petconnect

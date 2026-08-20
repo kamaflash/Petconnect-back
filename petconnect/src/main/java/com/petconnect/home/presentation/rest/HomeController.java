@@ -8,6 +8,7 @@ import com.petconnect.home.domain.VetService;
 import com.petconnect.home.domain.Achievement;
 import com.petconnect.home.domain.UserLevel;
 import com.petconnect.social.domain.Story;
+import com.petconnect.shared.infrastructure.security.CurrentUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/home")
@@ -24,9 +26,11 @@ public class HomeController {
     private static final Logger log = LoggerFactory.getLogger(HomeController.class);
 
     private final HomeService homeService;
+    private final CurrentUserService currentUserService;
 
-    public HomeController(HomeService homeService) {
+    public HomeController(HomeService homeService, CurrentUserService currentUserService) {
         this.homeService = homeService;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping("/stories")
@@ -62,12 +66,14 @@ public class HomeController {
     @GetMapping("/achievements")
     public ResponseEntity<List<Achievement>> getUpcomingAchievements() {
         log.debug("GET /api/v1/home/achievements");
-        return ResponseEntity.ok(homeService.getUpcomingAchievements());
+        UUID userId = currentUserService.getCurrentUserId().orElse(null);
+        return ResponseEntity.ok(homeService.getUpcomingAchievements(userId));
     }
 
     @GetMapping("/user-level")
     public ResponseEntity<UserLevel> getUserLevel() {
         log.debug("GET /api/v1/home/user-level");
-        return ResponseEntity.ok(homeService.getUserLevel());
+        UUID userId = currentUserService.getCurrentUserId().orElse(null);
+        return ResponseEntity.ok(homeService.getUserLevel(userId));
     }
 }

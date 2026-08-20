@@ -9,7 +9,10 @@ import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
+import com.petconnect.gamification.application.events.XpEvent;
+import com.petconnect.gamification.domain.ActionType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +30,9 @@ public class CommentController {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserProfileRepository userProfileRepository;
+
+    @Autowired
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @Autowired
     public CommentController(CommentRepository commentRepository,
@@ -72,6 +78,7 @@ public class CommentController {
 
         Comment saved = commentRepository.save(comment);
         log.info("Comment created with id: {}", saved.getId());
+        publishGamification(ActionType.CREATE_COMMENT, request.userId());
 
         // Update comments count on target (e.g., post) - only for top-level comments
         if (request.parentId() == null) {
@@ -264,6 +271,19 @@ public class CommentController {
                 }
                 postRepository.save(post);
             });
+        }
+    }
+
+    // ========== GAMIFICATION ==========
+
+    private void publishGamification(ActionType actionType, UUID userId) {
+        if (applicationEventPublisher == null) {
+            return;
+        }
+        try {
+            applicationEventPublisher.publishEvent(new XpEvent(userId, actionType));
+        } catch (Exception e) {
+            log.warn("No se pudo notificar XP de {} para el usuario {}", actionType, userId);
         }
     }
 
