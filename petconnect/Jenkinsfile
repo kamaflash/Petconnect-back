@@ -18,7 +18,7 @@ pipeline {
             steps {
                 git branch: 'main',
                     url: 'git@github.com:kamaflash/Petconnect-back.git',
-                    credentialsId: 'petconnect-github-ssh'  // ← Cambié sshagent por credentialsId
+                    credentialsId: 'Pet-git-private'  // ← Cambié sshagent por credentialsId
             }
             post {
                 success {
