@@ -10,21 +10,18 @@
 FROM jenkins/jenkins:lts-jdk21
 
 USER root
-# Cliente Docker + plugin Docker Compose v2 + utilidades.
-# docker.io no incluye el subcomando 'docker compose', por eso se instala el
-# paquete docker-compose-plugin. Si el repos Debian no lo provee, se descarga el
-# binario oficial de GitHub al cli-plugins del usuario root.
+# Cliente Docker. Se instala en RUN separado con '&&' para que un fallo NO quede
+# enmascarado. IMPORTANTE: NO usar --no-install-recommends aquí, porque en esta
+# imagen Debian docker.io solo deja los scripts de init sin el binario /usr/bin/docker.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends docker.io ca-certificates curl \
-    ; if apt-get install -y --no-install-recommends docker-compose-plugin; then \
-        echo "compose-plugin instalado por apt"; \
-      else \
-        echo "Descargando docker-compose v2 desde GitHub"; \
-        mkdir -p /root/.docker/cli-plugins; \
-        curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" -o /root/.docker/cli-plugins/docker-compose; \
-        chmod +x /root/.docker/cli-plugins/docker-compose; \
-      fi \
+    && apt-get install -y docker.io ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Plugin Docker Compose v2 (el paquete docker.io no lo incluye). Se descarga el
+# binario oficial de GitHub y se coloca en el cli-plugins del usuario root.
+RUN mkdir -p /root/.docker/cli-plugins \
+    && curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" -o /root/.docker/cli-plugins/docker-compose \
+    && chmod +x /root/.docker/cli-plugins/docker-compose
 
 # Entrada: corrige permisos de las claves SSH montadas (/root/.ssh) antes de iniciar Jenkins.
 # Necesario porque al montar .ssh desde Windows los permisos llegan como 0777 y
