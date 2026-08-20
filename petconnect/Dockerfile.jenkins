@@ -1,0 +1,17 @@
+# Jenkins master con cliente Docker incluido.
+# Uso: permite que el pipeline ejecute docker build / docker compose
+#       conectándose al daemon del host a través del socket montado.
+# Build:   docker build -f Dockerfile.jenkins -t jenkins-with-docker .
+# Run:     docker run -d --name jenkins --network jenkins-net \
+#             -p 8080:8080 -p 50000:50000 \
+#             -v jenkins_home:/var/jenkins_home \
+#             -v //var/run/docker.sock:/var/run/docker.sock \
+#             jenkins-with-docker
+FROM jenkins/jenkins:lts-jdk21
+
+USER root
+RUN apt-get update \
+    && apt-get install -y docker.io \
+    && usermod -aG docker jenkins \
+    && rm -rf /var/lib/apt/lists/*
+USER jenkins
