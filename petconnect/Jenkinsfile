@@ -23,37 +23,83 @@ pipeline {
         IMAGE_NAME = 'petconnect'
         IMAGE_TAG  = "${env.GIT_COMMIT?.take(7) ?: 'latest'}"
         REGISTRY   = ''  // Déjalo vacío si no subes a DockerHub
+        // Activa el análisis estático de SonarQube. Deja en 'false' hasta que
+        // configures un servidor SonarQube y el plugin 'SonarQube Scanner' en Jenkins.
+        RUN_SONAR  = 'false'
+        // Credencial (token) de SonarQube, p.ej. 'sonar-token'. Se usa en la etapa SonarQube.
+        SONAR_TOKEN_URL = ''
     }
 
     stages {
         // El checkout del código ya lo hace Jenkins automáticamente al cargar
         // el pipeline (Pipeline script from SCM). Sin stage manual redundante.
 
-        // 2. Compilación y tests - CORREGIDO
-        stage('Build & Test') {
+        // 1. Compilar: solo compila el código fuente.
+        stage('Compile') {
             steps {
-                script {
-                    dir('petconnect') {
-                        sh 'mvn -B -ntp clean verify'
-                    }
+                dir('petconnect') {
+                    sh 'mvn -B -ntp clean compile'
                 }
             }
             post {
-                success {
-                    echo '✅ Build y tests completados'
+                success { echo '✅ Compilación correcta' }
+                failure { error '❌ Falló la compilación' }
+            }
+        }
+
+        // 2. Test: ejecuta los tests (Surefire).
+        stage('Test') {
+            steps {
+                dir('petconnect') {
+                    sh 'mvn -B -ntp surefire:test'
                 }
-                failure {
-                    echo '❌ Falló el build o tests'
-                    emailext (
-                        subject: "PetConnect CI FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                        body: "El build falló. Revisa: ${env.BUILD_URL}",
-                        to: 'tu-email@ejemplo.com'
-                    )
+            }
+            post {
+                always {
+                    // Publica los reportes de test en Jenkins (requiere plugin 'JUnit').
+                    junit testResults: 'petconnect/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+                success { echo '✅ Tests correctos' }
+                failure { echo '❌ Fallaron los tests' }
+            }
+        }
+
+        // 3. SonarQube (OPCIONAL / deshabilitado): análisis estático.
+        //    Se salta a menos que RUN_SONAR sea 'true' y exista SONAR_TOKEN_URL.
+        //    Requiere: servidor SonarQube + plugin 'SonarQube Scanner' + credencial token.
+        stage('SonarQube') {
+            when {
+                allOf {
+                    expression { (env.RUN_SONAR ?: 'false') == 'true' }
+                    expression { (env.SONAR_TOKEN_URL ?: '').toString().trim() != '' }
+                }
+            }
+            steps {
+                dir('petconnect') {
+                    withSonarQubeEnv('SonarQube') {
+                        sh 'mvn -B -ntp verify sonar:sonar'
+                        timeout(time: 10, unit: 'MINUTES') {
+                            waitForQualityGate abortPipeline: true
+                        }
+                    }
                 }
             }
         }
 
-        // 3. Build de la imagen Docker - CORREGIDO
+        // 4. Package: genera el artefacto (jar). Ya compilado y testeado.
+        stage('Package') {
+            steps {
+                dir('petconnect') {
+                    sh 'mvn -B -ntp package -DskipTests'
+                }
+            }
+            post {
+                success { echo '✅ Paquete generado' }
+                failure { echo '❌ Falló el empaquetado' }
+            }
+        }
+
+        // 5. Build de la imagen Docker.
         stage('Build Docker Image') {
             steps {
                 script {
@@ -65,7 +111,7 @@ pipeline {
             }
         }
 
-        // 4. (Opcional) Push a DockerHub. Solo corre cuando REGISTRY tenga un valor
+        // 6. (Opcional) Push a DockerHub. Solo corre cuando REGISTRY tenga un valor
         //    no vacío (si está vacío definines que no subes a DockerHub).
         stage('Push to DockerHub') {
             when {
@@ -85,8 +131,11 @@ pipeline {
             }
         }
 
-        // 5. Despliegue con docker-compose - CORREGIDO
+        // 7. Despliegue con docker-compose. Solo en la rama 'main'.
         stage('Deploy') {
+            when {
+                branch 'main'
+            }
             steps {
                 script {
                     dir('petconnect') {
