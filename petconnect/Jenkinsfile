@@ -43,6 +43,8 @@ pipeline {
                         credentialsId: 'github-ssh'
                     ]]
                 )
+                // Diagnóstico: verifica qué quedó en el workspace tras el checkout.
+                sh 'echo "PWD: $(pwd)"; ls -la; echo "---"; find . -maxdepth 2 -name pom.xml'
             }
             post {
                 success { echo '✅ Checkout correcto' }
