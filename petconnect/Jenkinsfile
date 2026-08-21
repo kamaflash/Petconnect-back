@@ -31,8 +31,24 @@ pipeline {
     }
 
     stages {
-        // El checkout del código ya lo hace Jenkins automáticamente al cargar
-        // el pipeline (Pipeline script from SCM). Sin stage manual redundante.
+        // 0. Checkout explícito del código. Garantiza que el workspace tenga
+        //    los fuentes aunque el job esté definido como 'Pipeline script'.
+        stage('Checkout') {
+            steps {
+                checkout scmGit(
+                    branches: [[name: '*/main']],
+                    extensions: [wipeWorkspace()],
+                    userRemoteConfigs: [[
+                        url: 'git@github.com:kamaflash/Petconnect-back.git',
+                        credentialsId: 'github-ssh'
+                    ]]
+                )
+            }
+            post {
+                success { echo '✅ Checkout correcto' }
+                failure { error '❌ Falló el checkout del repositorio' }
+            }
+        }
 
         // 1. Compilar: solo compila el código fuente.
         stage('Compile') {
