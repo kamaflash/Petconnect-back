@@ -148,9 +148,14 @@ pipeline {
         }
 
         // 7. Despliegue con docker-compose. Solo en la rama 'main'.
+        //    NOTA: 'branch main' solo funciona en jobs Multibranch; en un job
+        //    Pipeline normal se comprueba GIT_BRANCH/BRANCH_NAME manualmente.
         stage('Deploy') {
             when {
-                branch 'main'
+                expression {
+                    def b = (env.BRANCH_NAME ?: (env.GIT_BRANCH ?: '')).replaceFirst('^origin/', '')
+                    return b == 'main'
+                }
             }
             steps {
                 script {
