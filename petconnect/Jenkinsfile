@@ -37,9 +37,7 @@ pipeline {
         // 1. Compilar: solo compila el código fuente.
         stage('Compile') {
             steps {
-                dir('petconnect') {
-                    sh 'mvn -B -ntp clean compile'
-                }
+                sh 'mvn -B -ntp clean compile'
             }
             post {
                 success { echo '✅ Compilación correcta' }
@@ -50,14 +48,12 @@ pipeline {
         // 2. Test: ejecuta los tests (Surefire).
         stage('Test') {
             steps {
-                dir('petconnect') {
-                    sh 'mvn -B -ntp surefire:test'
-                }
+                sh 'mvn -B -ntp surefire:test'
             }
             post {
                 always {
                     // Publica los reportes de test en Jenkins (requiere plugin 'JUnit').
-                    junit testResults: 'petconnect/target/surefire-reports/*.xml', allowEmptyResults: true
+                    junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
                 }
                 success { echo '✅ Tests correctos' }
                 failure { echo '❌ Fallaron los tests' }
@@ -75,12 +71,10 @@ pipeline {
                 }
             }
             steps {
-                dir('petconnect') {
-                    withSonarQubeEnv('SonarQube') {
-                        sh 'mvn -B -ntp verify sonar:sonar'
-                        timeout(time: 10, unit: 'MINUTES') {
-                            waitForQualityGate abortPipeline: true
-                        }
+                withSonarQubeEnv('SonarQube') {
+                    sh 'mvn -B -ntp verify sonar:sonar'
+                    timeout(time: 10, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: true
                     }
                 }
             }
@@ -89,9 +83,7 @@ pipeline {
         // 4. Package: genera el artefacto (jar). Ya compilado y testeado.
         stage('Package') {
             steps {
-                dir('petconnect') {
-                    sh 'mvn -B -ntp package -DskipTests'
-                }
+                sh 'mvn -B -ntp package -DskipTests'
             }
             post {
                 success { echo '✅ Paquete generado' }
@@ -103,10 +95,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    dir('petconnect') {
-                        docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
-                        docker.build("${IMAGE_NAME}:latest")
-                    }
+                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
+                    docker.build("${IMAGE_NAME}:latest")
                 }
             }
         }
@@ -138,12 +128,10 @@ pipeline {
             }
             steps {
                 script {
-                    dir('petconnect') {
-                        sh '''
-                            docker compose down
-                            docker compose up -d --build
-                        '''
-                    }
+                    sh '''
+                        docker compose down
+                        docker compose up -d --build
+                    '''
                 }
             }
         }
