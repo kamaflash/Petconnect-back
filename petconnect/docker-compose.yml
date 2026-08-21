@@ -36,8 +36,7 @@
       DATASOURCE_URL: jdbc:postgresql://postgres:5432/petconnect
       REDIS_HOST: redis
     ports:
-      # Public en 8081 porque el host ya tiene una app (PetConnect/java) en el 8080.
-      - "8081:8080"
+      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
