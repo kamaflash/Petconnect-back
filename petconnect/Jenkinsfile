@@ -37,7 +37,7 @@ pipeline {
             steps {
                 checkout scmGit(
                     branches: [[name: '*/main']],
-                    extensions: [wipeWorkspace()],
+                    extensions: [cleanBeforeCheckout()],
                     userRemoteConfigs: [[
                         url: 'git@github.com:kamaflash/Petconnect-back.git',
                         credentialsId: 'github-ssh'
