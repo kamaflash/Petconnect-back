@@ -100,6 +100,12 @@ public class UserProfile extends BaseEntity {
         this.website = website;
     }
 
+    public void updateProfileType(String profileType) {
+        if (profileType != null && !profileType.isBlank()) {
+            this.profileType = profileType;
+        }
+    }
+
     public void updateLocation(String location, Double latitude, Double longitude) {
         this.location = location;
         this.latitude = latitude;

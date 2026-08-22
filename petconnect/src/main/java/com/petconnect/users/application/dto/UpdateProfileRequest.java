@@ -14,6 +14,7 @@ public record UpdateProfileRequest(
                 @Size(max = 500) String location,
                 Double latitude,
                 Double longitude,
+                @Size(max = 20) String profileType,
                 @Size(max = 100) String specialty,
                 @Size(max = 50) String licenseNumber,
                 @Size(max = 100) String charityNumber,

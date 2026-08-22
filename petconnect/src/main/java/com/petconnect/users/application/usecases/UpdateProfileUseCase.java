@@ -55,6 +55,7 @@ public class UpdateProfileUseCase {
                     data.bio(),
                     data.dateOfBirth());
             profile.updateLocation(data.location(), data.latitude(), data.longitude());
+            profile.updateProfileType(data.profileType());
             profile.updateTypeSpecificFields(
                     data.specialty(),
                     data.licenseNumber(),
