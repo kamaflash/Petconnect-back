@@ -8,6 +8,7 @@ import com.petconnect.pets.domain.repositories.PetRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.UUID;
 
 @Service
@@ -24,53 +25,69 @@ public class UpdatePetUseCase {
                 var pet = petRepository.findById(petId)
                                 .orElseThrow(() -> new PetNotFoundException("Pet not found with id: " + petId));
 
-                // Update basic details
-                pet.updateDetails(
-                                request.name(),
-                                request.breed(),
-                                request.dateOfBirth(),
-                                request.gender(),
-                                request.bio(),
-                                request.color(),
-                                request.microchipId());
+                // Si llega un nombre no vacío, se trata de la edición completa del animal.
+                // Si el nombre viene vacío (update parcial, p.ej. solo añadir una foto),
+                // NO se sobrescriben los campos existentes para no perder datos.
+                if (request.name() != null && !request.name().isBlank()) {
+                        // Update basic details
+                        pet.updateDetails(
+                                        request.name(),
+                                        request.breed(),
+                                        request.dateOfBirth(),
+                                        request.gender(),
+                                        request.bio(),
+                                        request.color(),
+                                        request.microchipId());
 
-                // Update weight
-                pet.updateWeight(request.weight(), request.weightUnit());
+                        // Update weight
+                        pet.updateWeight(request.weight(), request.weightUnit());
 
-                // Update medical info
-                pet.updateMedicalInfo(
-                                request.bloodType(),
-                                request.allergies(),
-                                request.medicalConditions(),
-                                request.vetName(),
-                                request.vetPhone(),
-                                request.vetAddress(),
-                                request.lastVaccinationDate(),
-                                request.nextVaccinationDate(),
-                                request.lastVetVisit(),
-                                request.insuranceProvider(),
-                                request.insurancePolicyNumber());
+                        // Update medical info
+                        pet.updateMedicalInfo(
+                                        request.bloodType(),
+                                        request.allergies(),
+                                        request.medicalConditions(),
+                                        request.vetName(),
+                                        request.vetPhone(),
+                                        request.vetAddress(),
+                                        request.lastVaccinationDate(),
+                                        request.nextVaccinationDate(),
+                                        request.lastVetVisit(),
+                                        request.insuranceProvider(),
+                                        request.insurancePolicyNumber());
 
-                // Update additional info
-                pet.updateAdditionalInfo(
-                                request.emergencyContact(),
-                                request.emergencyPhone(),
-                                request.adoptionDate(),
-                                request.adoptionCenter(),
-                                request.registrationNumber(),
-                                request.licenseNumber(),
-                                request.licenseExpiryDate(),
-                                request.spayedNeutered(),
-                                request.spayedNeuteredDate());
+                        // Update additional info
+                        pet.updateAdditionalInfo(
+                                        request.emergencyContact(),
+                                        request.emergencyPhone(),
+                                        request.adoptionDate(),
+                                        request.adoptionCenter(),
+                                        request.registrationNumber(),
+                                        request.licenseNumber(),
+                                        request.licenseExpiryDate(),
+                                        request.spayedNeutered(),
+                                        request.spayedNeuteredDate());
 
-                // Update behavior
-                pet.updateBehavior(
-                                request.temperament(),
-                                request.energyLevel(),
-                                request.trainingLevel(),
-                                request.favoriteActivities(),
-                                request.favoriteFood(),
-                                request.specialNeeds());
+                        // Update behavior
+                        pet.updateBehavior(
+                                        request.temperament(),
+                                        request.energyLevel(),
+                                        request.trainingLevel(),
+                                        request.favoriteActivities(),
+                                        request.favoriteFood(),
+                                        request.specialNeeds());
+                }
+
+                // Añadir nuevas imágenes a la galería sin duplicar las ya existentes.
+                // Se soporta tanto el envío de la lista completa como el de una única URL nueva.
+                if (request.imageUrls() != null && !request.imageUrls().isEmpty()) {
+                        var existing = new HashSet<>(pet.getImageUrls());
+                        for (String url : request.imageUrls()) {
+                                if (url != null && !url.isBlank() && existing.add(url)) {
+                                        pet.addImage(url);
+                                }
+                        }
+                }
 
                 var saved = petRepository.save(pet);
 

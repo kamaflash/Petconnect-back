@@ -438,6 +438,10 @@ public class Pet extends BaseEntity {
         return lastKnownLocation;
     }
 
+    public void setLastKnownLocation(String lastKnownLocation) {
+        this.lastKnownLocation = lastKnownLocation;
+    }
+
     public boolean isLost() {
         return lost;
     }

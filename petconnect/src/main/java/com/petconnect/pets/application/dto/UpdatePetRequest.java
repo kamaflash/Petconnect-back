@@ -1,11 +1,10 @@
 package com.petconnect.pets.application.dto;
 
-import jakarta.validation.constraints.NotBlank;
-
 import java.time.LocalDate;
+import java.util.List;
 
 public record UpdatePetRequest(
-                @NotBlank(message = "Name is required") String name,
+                String name,
                 String breed,
                 LocalDate dateOfBirth,
                 String gender,
@@ -45,5 +44,8 @@ public record UpdatePetRequest(
                 String trainingLevel,
                 String favoriteActivities,
                 String favoriteFood,
-                String specialNeeds) {
+                String specialNeeds,
+
+                // Imágenes adicionales (URLs a añadir a la galería)
+                List<String> imageUrls) {
 }

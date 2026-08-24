@@ -7,6 +7,7 @@ import com.petconnect.pets.domain.events.PetCreatedEvent;
 import com.petconnect.pets.domain.repositories.PetRepository;
 import com.petconnect.shared.domain.DomainEventPublisher;
 import com.petconnect.shared.infrastructure.services.CloudinaryService;
+import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,13 +26,15 @@ public class CreatePetUseCase {
     private final PetRepository petRepository;
     private final DomainEventPublisher eventPublisher;
     private final Optional<CloudinaryService> cloudinaryService;
+    private final UserProfileRepository userProfileRepository;
 
     @Autowired
     public CreatePetUseCase(PetRepository petRepository, DomainEventPublisher eventPublisher,
-            Optional<CloudinaryService> cloudinaryService) {
+            Optional<CloudinaryService> cloudinaryService, UserProfileRepository userProfileRepository) {
         this.petRepository = petRepository;
         this.eventPublisher = eventPublisher;
         this.cloudinaryService = cloudinaryService;
+        this.userProfileRepository = userProfileRepository;
     }
 
     @Transactional
@@ -108,6 +111,13 @@ public class CreatePetUseCase {
                     log.error("Failed to upload additional image for pet", e);
                 }
             }
+        }
+
+        // Si el propietario tiene ubicación definida, la usa como ubicación
+        // conocida inicial de la mascota (igual que la del propietario)
+        if (command.ownerId() != null) {
+            userProfileRepository.findByAuthUserId(command.ownerId())
+                    .ifPresent(profile -> pet.setLastKnownLocation(profile.getLocation()));
         }
 
         var saved = petRepository.save(pet);
