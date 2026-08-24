@@ -2,6 +2,8 @@ package com.petconnect.social.infrastructure.persistence;
 
 import com.petconnect.social.domain.Post;
 import com.petconnect.social.domain.repositories.PostRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -25,6 +27,11 @@ public class JpaPostRepositoryAdapter implements PostRepository {
     @Override
     public List<Post> findAll() {
         return springDataPostRepository.findAll();
+    }
+
+    @Override
+    public Page<Post> findAll(Pageable pageable) {
+        return springDataPostRepository.findAll(pageable);
     }
 
     @Override
