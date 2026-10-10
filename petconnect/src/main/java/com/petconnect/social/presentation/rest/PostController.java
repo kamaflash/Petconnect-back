@@ -14,6 +14,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import com.petconnect.gamification.application.events.XpEvent;
 import com.petconnect.gamification.domain.ActionType;
@@ -233,49 +237,43 @@ public class PostController {
     // ========== FEED - POSTS FROM FOLLOWED USERS ==========
 
     @GetMapping("/posts/following/{userId}")
-    public ResponseEntity<List<Post>> getPostsFromFollowing(@PathVariable UUID userId) {
-        log.debug("GET /api/v1/social/posts/following/{}", userId);
+    public ResponseEntity<Page<Post>> getPostsFromFollowing(
+            @PathVariable UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.debug("GET /api/v1/social/posts/following/{} - page: {}, size: {}", userId, page, size);
 
-        // Get the list of users that the current user follows
         List<UUID> followingIds = followRepository.findByFollowerId(userId).stream()
                 .map(follow -> follow.getFollowingId())
                 .collect(Collectors.toList());
 
-        log.info("User {} follows {} users: {}", userId, followingIds.size(), followingIds);
-
-        // Add the user's own ID to include their own posts in the feed
         followingIds.add(userId);
 
-        // Get posts from followed users
-        List<Post> posts = postRepository.findByAuthorIdIn(followingIds);
-        log.info("Found {} posts for user {}", posts.size(), userId);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Post> posts = postRepository.findActiveByAuthorIdIn(followingIds, pageable);
 
-        // If no posts found (user doesn't follow anyone or no posts from followed
-        // users),
-        // return all active posts as fallback
-        if (posts.isEmpty()) {
+        if (posts.getTotalElements() == 0) {
             log.info("No posts found for followed users, returning all active posts");
-            posts = postRepository.findAll().stream()
-                    .filter(Post::isActive)
-                    .collect(Collectors.toList());
-            log.info("Returning {} active posts as fallback", posts.size());
+            posts = postRepository.findActivePaginated(pageable);
         }
 
+        log.info("Returning page {} with {} posts for user {}", page, posts.getNumberOfElements(), userId);
         return ResponseEntity.ok(posts);
     }
 
     // ========== PUBLIC FEED - ALL POSTS ==========
 
-    @GetMapping("/posts/feed")
-    public ResponseEntity<List<Post>> getPublicFeed() {
-        log.debug("GET /api/v1/social/posts/feed");
+        @GetMapping("/posts/feed")
+    public ResponseEntity<Page<Post>> getPublicFeed(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "9") int size) {
+        log.debug("GET /api/v1/social/posts/feed - page: {}, size: {}", page, size);
 
-        // Return all active posts for public feed (social-page)
-        List<Post> posts = postRepository.findAll().stream()
-                .filter(Post::isActive)
-                .collect(Collectors.toList());
+        // Return paginated active posts for public feed (social-page)
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Post> posts = postRepository.findActivePaginated(pageable);
 
-        log.info("Returning {} active posts for public feed", posts.size());
+        log.info("Returning page {} with {} active posts (total: {})", page, posts.getNumberOfElements(), posts.getTotalElements());
         return ResponseEntity.ok(posts);
     }
 

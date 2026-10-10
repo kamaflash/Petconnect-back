@@ -35,6 +35,11 @@ public class JpaPostRepositoryAdapter implements PostRepository {
     }
 
     @Override
+    public Page<Post> findActivePaginated(Pageable pageable) {
+        return springDataPostRepository.findByActiveTrue(pageable);
+    }
+
+    @Override
     public List<Post> findByAuthorId(UUID authorId) {
         return springDataPostRepository.findByAuthorId(authorId);
     }
@@ -42,6 +47,11 @@ public class JpaPostRepositoryAdapter implements PostRepository {
     @Override
     public List<Post> findByAuthorIdIn(List<UUID> authorIds) {
         return springDataPostRepository.findByAuthorIdIn(authorIds);
+    }
+
+    @Override
+    public Page<Post> findActiveByAuthorIdIn(List<UUID> authorIds, Pageable pageable) {
+        return springDataPostRepository.findByAuthorIdInAndActiveTrue(authorIds, pageable);
     }
 
     @Override

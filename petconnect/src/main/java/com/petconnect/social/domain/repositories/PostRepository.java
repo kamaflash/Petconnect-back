@@ -16,9 +16,15 @@ public interface PostRepository {
     /** Devuelve una página de posts ordenada según el {@link Pageable} indicado. */
     Page<Post> findAll(Pageable pageable);
 
+    /** Devuelve una página de posts activos ordenada según el {@link Pageable} indicado. */
+    Page<Post> findActivePaginated(Pageable pageable);
+
     List<Post> findByAuthorId(UUID authorId);
 
     List<Post> findByAuthorIdIn(List<UUID> authorIds);
+
+    /** Devuelve una página de posts activos de los autores indicados. */
+    Page<Post> findActiveByAuthorIdIn(List<UUID> authorIds, Pageable pageable);
 
     Post save(Post post);
 
