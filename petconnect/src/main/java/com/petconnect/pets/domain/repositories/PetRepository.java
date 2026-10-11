@@ -9,6 +9,8 @@ import java.util.UUID;
 public interface PetRepository {
     Optional<Pet> findById(UUID id);
 
+    Optional<Pet> findByPassportToken(String token);
+
     List<Pet> findByOwnerId(UUID ownerId);
 
     List<Pet> findBySpecies(String species);

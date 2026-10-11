@@ -23,6 +23,11 @@ public class JpaPetRepositoryAdapter implements PetRepository {
     }
 
     @Override
+    public Optional<Pet> findByPassportToken(String token) {
+        return springDataPetRepository.findByPassportToken(token);
+    }
+
+    @Override
     public List<Pet> findByOwnerId(UUID ownerId) {
         return springDataPetRepository.findByOwnerId(ownerId);
     }

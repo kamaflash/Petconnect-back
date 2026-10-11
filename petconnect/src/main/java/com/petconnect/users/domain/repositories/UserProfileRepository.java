@@ -11,6 +11,8 @@ public interface UserProfileRepository {
 
     Optional<UserProfile> findByAuthUserId(UUID authUserId);
 
+    List<UserProfile> findByPendingProfileTypeIsNotNull();
+
     List<UserProfile> findAll();
 
     UserProfile save(UserProfile userProfile);

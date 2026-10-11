@@ -23,6 +23,9 @@ public class Post extends BaseEntity {
     @Column(name = "tags", length = 2000)
     private String tags;
 
+    @Column(name = "pet_id")
+    private UUID petId;
+
     @Column(name = "likes_count", nullable = false)
     private int likesCount;
 
@@ -53,9 +56,15 @@ public class Post extends BaseEntity {
         this.imageUrl = imageUrl;
         this.caption = caption;
         this.tags = tags;
+        this.petId = null;
         this.likesCount = 0;
         this.commentsCount = 0;
         this.active = true;
+    }
+
+    public Post(UUID authorId, String imageUrl, String caption, String tags, UUID petId) {
+        this(authorId, imageUrl, caption, tags);
+        this.petId = petId;
     }
 
     public void incrementLikes() {
@@ -92,6 +101,14 @@ public class Post extends BaseEntity {
 
     public String getTags() {
         return tags;
+    }
+
+    public UUID getPetId() {
+        return petId;
+    }
+
+    public void setPetId(UUID petId) {
+        this.petId = petId;
     }
 
     public void softDelete() {

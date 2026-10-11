@@ -16,4 +16,9 @@ public interface SpringDataPostRepository extends JpaRepository<Post, UUID> {
     Page<Post> findByActiveTrue(Pageable pageable);
 
     Page<Post> findByAuthorIdInAndActiveTrue(List<UUID> authorIds, Pageable pageable);
+
+    List<Post> findByPetId(UUID petId);
+
+    Page<Post> findByPetIdAndActiveTrue(UUID petId, Pageable pageable);
 }
+

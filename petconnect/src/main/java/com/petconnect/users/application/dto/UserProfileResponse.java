@@ -23,5 +23,6 @@ public record UserProfileResponse(
                 String licenseNumber,
                 String charityNumber,
                 String storeName,
-                String website) {
+                String website,
+                String pendingProfileType) {
 }

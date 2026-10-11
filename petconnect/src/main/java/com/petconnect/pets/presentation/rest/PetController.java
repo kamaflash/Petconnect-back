@@ -1,12 +1,14 @@
 package com.petconnect.pets.presentation.rest;
 
 import com.petconnect.pets.application.commands.CreatePetCommand;
+import com.petconnect.pets.domain.Species;
+import com.petconnect.social.domain.Post;
 import com.petconnect.pets.application.dto.PetResponse;
 import com.petconnect.pets.application.dto.UpdatePetRequest;
 import com.petconnect.pets.application.usecases.CreatePetUseCase;
 import com.petconnect.pets.application.usecases.GetPetUseCase;
 import com.petconnect.pets.application.usecases.UpdatePetUseCase;
-import com.petconnect.pets.domain.Species;
+import com.petconnect.social.domain.repositories.PostRepository;
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
 import com.petconnect.users.domain.UserProfile;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
@@ -40,6 +42,7 @@ public class PetController {
     private final com.petconnect.pets.domain.repositories.PetRepository petRepository;
     private final UserProfileRepository userProfileRepository;
     private final com.petconnect.home.domain.repositories.AdoptionRepository adoptionRepository;
+    private final PostRepository postRepository;
 
     @Autowired
     private ApplicationEventPublisher applicationEventPublisher;
@@ -50,13 +53,15 @@ public class PetController {
             UpdatePetUseCase updatePetUseCase,
             com.petconnect.pets.domain.repositories.PetRepository petRepository,
             UserProfileRepository userProfileRepository,
-            com.petconnect.home.domain.repositories.AdoptionRepository adoptionRepository) {
+            com.petconnect.home.domain.repositories.AdoptionRepository adoptionRepository,
+            PostRepository postRepository) {
         this.createPetUseCase = createPetUseCase;
         this.getPetUseCase = getPetUseCase;
         this.updatePetUseCase = updatePetUseCase;
         this.petRepository = petRepository;
         this.userProfileRepository = userProfileRepository;
         this.adoptionRepository = adoptionRepository;
+        this.postRepository = postRepository;
     }
 
     // ========== GAMIFICATION ==========
@@ -277,6 +282,33 @@ public class PetController {
             // Delete adoption record if exists
             adoptionRepository.findByPetIdAndStatus(petId, "AVAILABLE")
                     .ifPresent(adoptionRepository::delete);
+        }
+
+        // Publicar el post de adopción automáticamente (sin romper el flujo si falla)
+        if (availableForAdoption) {
+            var adoptionPost = new Post(
+                    currentUserId,
+                    pet.getAvatarUrl(),
+                    String.format("¡%s está en adopción! 🐾 %s %s", pet.getName(), pet.getSpecies().name(), pet.getBreed()),
+                    "#Adopción #AdoptaNoCompres",
+                    petId);
+            try {
+                postRepository.save(adoptionPost);
+            } catch (Exception e) {
+                log.warn("No se pudo publicar el post de adopción para la mascota {}: {}", petId, e.getMessage());
+            }
+        } else {
+            postRepository.findByPetId(petId).stream()
+                    .filter(Post::isActive)
+                    .findFirst()
+                    .ifPresent(post -> {
+                        post.softDelete();
+                        try {
+                            postRepository.save(post);
+                        } catch (Exception e) {
+                            log.warn("No se pudo eliminar el post de adopción para la mascota {}: {}", petId, e.getMessage());
+                        }
+                    });
         }
 
         // Convert to response

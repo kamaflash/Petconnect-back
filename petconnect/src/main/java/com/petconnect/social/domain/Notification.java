@@ -46,6 +46,12 @@ public class Notification extends BaseEntity {
         this.read = true;
     }
 
+    /** Vincula la notificación con la entidad que la originó. */
+    public void setReference(UUID referenceId, String referenceType) {
+        this.referenceId = referenceId;
+        this.referenceType = referenceType;
+    }
+
     public UUID getUserId() {
         return userId;
     }

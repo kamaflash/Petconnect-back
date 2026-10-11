@@ -79,7 +79,8 @@ public class RefreshTokenUseCase {
                         profile.getLicenseNumber(),
                         profile.getCharityNumber(),
                         profile.getStoreName(),
-                        profile.getWebsite()))
+                        profile.getWebsite(),
+                        profile.getPendingProfileType()))
                 .orElse(null);
 
         return new AuthResponse(

@@ -19,7 +19,11 @@ spring:
     password: ${DATASOURCE_PASSWORD:petconnect123}
     driver-class-name: org.postgresql.Driver
 
-  # JPA
+  # JPA: con Flyway el esquema lo mandan las migraciones; Hibernate solo añade
+  # lo que falte (update). NO usar create-drop: al apagar borra las tablas de
+  # entidades pero conserva flyway_schema_history, y al rearrancar Flyway solo
+  # intenta la última migración sobre tablas que ya no existen
+  # ("relation user_profiles does not exist").
   jpa:
     open-in-view: false
     hibernate:
@@ -33,8 +37,11 @@ spring:
   # Flyway
   flyway:
     enabled: true
-    baseline-on-migrate: true
+    # NO usar baseline-on-migrate en local con ddl-auto create-drop:
+    # al cerrar, Hibernate borra las tablas (incluido el historial de Flyway)
+    # y al arrancar Flyway marcaba todo como aplicado sin ejecutar nada.
     locations: classpath:db/migration
+    validate-on-migrate: false
 
   # Redis
   data:

@@ -3,6 +3,7 @@ package com.petconnect.adoptions.presentation.rest;
 import com.petconnect.adoptions.application.AdoptionRequestService;
 import com.petconnect.adoptions.application.dto.AdoptionHistoryResponse;
 import com.petconnect.adoptions.application.dto.AdoptionRequestResponse;
+import com.petconnect.adoptions.application.dto.AdoptionRequestEventResponse;
 import com.petconnect.adoptions.application.dto.CreateAdoptionRequest;
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +57,14 @@ public class AdoptionRequestController {
         log.debug("GET /api/v1/adoptions/my-pets-requests");
         UUID ownerId = getUserId(authentication);
         return ResponseEntity.ok(adoptionRequestService.getRequestsForMyPets(ownerId));
+    }
+
+    @GetMapping("/{requestId}/timeline")
+    public ResponseEntity<List<AdoptionRequestEventResponse>> getRequestTimeline(
+            Authentication authentication,
+            @PathVariable UUID requestId) {
+        UUID actorId = getUserId(authentication);
+        return ResponseEntity.ok(adoptionRequestService.getRequestTimeline(actorId, requestId));
     }
 
     @GetMapping("/{petId}/history")

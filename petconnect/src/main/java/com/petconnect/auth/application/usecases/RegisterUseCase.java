@@ -62,9 +62,13 @@ public class RegisterUseCase {
 
                 var savedUser = authUserRepository.save(authUser);
 
-                // Create user profile
+                // Create user profile. Los tipos vet/shelter nacen pendientes de
+                // aprobación de un administrador (el resto se aplican directamente).
+                String initialType = UserProfile.requiresApproval(command.profileType()) ? "user"
+                                : command.profileType();
                 var userProfile = new UserProfile(savedUser.getId(), command.firstName(), command.lastName(),
-                                command.profileType());
+                                initialType);
+                userProfile.requestProfileType(command.profileType());
                 var savedProfile = userProfileRepository.save(userProfile);
 
                 var accessToken = jwtService.generateAccessToken(savedUser.getId(), savedUser.getEmail(),
@@ -100,7 +104,8 @@ public class RegisterUseCase {
                                 savedProfile.getLicenseNumber(),
                                 savedProfile.getCharityNumber(),
                                 savedProfile.getStoreName(),
-                                savedProfile.getWebsite());
+                                savedProfile.getWebsite(),
+                                savedProfile.getPendingProfileType());
 
                 return new AuthResponse(
                                 savedUser.getId(),

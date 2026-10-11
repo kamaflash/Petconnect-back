@@ -82,6 +82,12 @@ public class PostController {
         return ResponseEntity.ok(postRepository.findByAuthorId(authorId));
     }
 
+    @GetMapping("/posts/by-pet/{petId}")
+    public ResponseEntity<List<Post>> getPostsByPet(@PathVariable UUID petId) {
+        log.debug("GET /api/v1/social/posts/by-pet/{}", petId);
+        return ResponseEntity.ok(postRepository.findByPetId(petId));
+    }
+
     @PostMapping("/posts")
     public ResponseEntity<Post> createPost(
             @RequestPart("authorId") String authorId,

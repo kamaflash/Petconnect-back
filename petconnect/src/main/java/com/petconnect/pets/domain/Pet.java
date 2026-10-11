@@ -147,6 +147,18 @@ public class Pet extends BaseEntity {
 
     private LocalDate lostDate;
 
+    @Column(name = "passport_token", length = 64, unique = true)
+    private String passportToken;
+
+    @Column(name = "passport_share_medical", nullable = false)
+    private boolean passportShareMedical;
+
+    @Column(name = "passport_share_emergency_contact", nullable = false)
+    private boolean passportShareEmergencyContact;
+
+    @Column(name = "passport_share_vet", nullable = false)
+    private boolean passportShareVet;
+
     @OneToMany(mappedBy = "pet", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     private List<PetImage> images = new ArrayList<>();
@@ -446,12 +458,55 @@ public class Pet extends BaseEntity {
         return lost;
     }
 
+    /** Marca la mascota como perdida (usado por los avisos de animales perdidos). */
+    public void markAsLost(LocalDate lostDate) {
+        this.lost = true;
+        this.lostDate = lostDate != null ? lostDate : LocalDate.now();
+    }
+
+    /** Levanta la marca de perdida cuando el caso se resuelve. */
+    public void markAsFound() {
+        this.lost = false;
+        this.lostDate = null;
+    }
+
     public LocalDate getLostDate() {
         return lostDate;
     }
 
     public boolean isAvailableForAdoption() {
         return availableForAdoption;
+    }
+
+    public String getPassportToken() {
+        return passportToken;
+    }
+
+    public boolean isPassportShareMedical() {
+        return passportShareMedical;
+    }
+
+    public boolean isPassportShareEmergencyContact() {
+        return passportShareEmergencyContact;
+    }
+
+    public boolean isPassportShareVet() {
+        return passportShareVet;
+    }
+
+    public void configurePassport(String token, boolean shareMedical,
+            boolean shareEmergencyContact, boolean shareVet) {
+        this.passportToken = token;
+        this.passportShareMedical = shareMedical;
+        this.passportShareEmergencyContact = shareEmergencyContact;
+        this.passportShareVet = shareVet;
+    }
+
+    public void revokePassport() {
+        this.passportToken = null;
+        this.passportShareMedical = false;
+        this.passportShareEmergencyContact = false;
+        this.passportShareVet = false;
     }
 
     public void setAvailableForAdoption(boolean availableForAdoption) {

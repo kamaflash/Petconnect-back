@@ -13,20 +13,27 @@ public interface PostRepository {
 
     List<Post> findAll();
 
-    /** Devuelve una página de posts ordenada según el {@link Pageable} indicado. */
+    /** Devuelve una pÃƒÆ’Ã‚Â¡gina de posts ordenada segÃƒÆ’Ã‚Âºn el {@link Pageable} indicado. */
     Page<Post> findAll(Pageable pageable);
 
-    /** Devuelve una página de posts activos ordenada según el {@link Pageable} indicado. */
+    /** Devuelve una pÃƒÆ’Ã‚Â¡gina de posts activos ordenada segÃƒÆ’Ã‚Âºn el {@link Pageable} indicado. */
     Page<Post> findActivePaginated(Pageable pageable);
 
     List<Post> findByAuthorId(UUID authorId);
 
     List<Post> findByAuthorIdIn(List<UUID> authorIds);
 
-    /** Devuelve una página de posts activos de los autores indicados. */
+    /** Devuelve una pÃƒÆ’Ã‚Â¡gina de posts activos de los autores indicados. */
     Page<Post> findActiveByAuthorIdIn(List<UUID> authorIds, Pageable pageable);
+
+    /** Devuelve una pÃƒÆ’Ã‚Â¡gina de posts activos de los autores indicados. */
+    List<Post> findByPetId(UUID petId);
+
+    Page<Post> findByPetIdAndActiveTrue(UUID petId, Pageable pageable);
 
     Post save(Post post);
 
     void delete(Post post);
 }
+
+

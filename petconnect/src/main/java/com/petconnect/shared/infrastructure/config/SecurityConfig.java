@@ -43,11 +43,18 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/pet-passports/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/social/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/social/posts").permitAll()
+                        // Los avisos de animales perdidos deben poder difundirse sin
+                        // sesión (solo exponen datos no personales); toda escritura
+                        // exige autenticación y se valida en el servicio.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/lost-pets/**").permitAll()
+                        // Las comunidades y sus contenidos públicos son navegables sin sesión.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/communities/**").permitAll()
                         // WebSocket: el handshake HTTP no puede llevar cabecera Authorization
                         // (el token viaja en el frame STOMP CONNECT). Permitimos el endpoint y
                         // la autenticación se valida en el JwtChannelInterceptor.

@@ -2,14 +2,17 @@ package com.petconnect.adoptions.application;
 
 import com.petconnect.adoptions.application.dto.AdoptionHistoryResponse;
 import com.petconnect.adoptions.application.dto.AdoptionRequestResponse;
+import com.petconnect.adoptions.application.dto.AdoptionRequestEventResponse;
 import com.petconnect.adoptions.application.dto.CreateAdoptionRequest;
 import com.petconnect.adoptions.application.dto.OwnershipChangeEventResponse;
 import com.petconnect.adoptions.application.dto.PetOwnerPeriod;
 import com.petconnect.adoptions.domain.AdoptionRequest;
+import com.petconnect.adoptions.domain.AdoptionRequestEvent;
 import com.petconnect.adoptions.domain.AdoptionStatus;
 import com.petconnect.adoptions.domain.OwnershipChangeReason;
 import com.petconnect.adoptions.domain.PetOwnershipHistory;
 import com.petconnect.adoptions.domain.repositories.AdoptionRequestRepository;
+import com.petconnect.adoptions.infrastructure.persistence.SpringDataAdoptionRequestEventRepository;
 import com.petconnect.adoptions.domain.repositories.PetOwnershipHistoryRepository;
 import com.petconnect.pets.domain.Pet;
 import com.petconnect.pets.domain.repositories.PetRepository;
@@ -36,6 +39,7 @@ public class AdoptionRequestService {
     private static final Logger log = LoggerFactory.getLogger(AdoptionRequestService.class);
 
     private final AdoptionRequestRepository adoptionRequestRepository;
+    private final SpringDataAdoptionRequestEventRepository adoptionRequestEventRepository;
     private final PetOwnershipHistoryRepository petOwnershipHistoryRepository;
     private final PetRepository petRepository;
     private final UserProfileRepository userProfileRepository;
@@ -44,12 +48,14 @@ public class AdoptionRequestService {
 
     public AdoptionRequestService(
             AdoptionRequestRepository adoptionRequestRepository,
+            SpringDataAdoptionRequestEventRepository adoptionRequestEventRepository,
             PetOwnershipHistoryRepository petOwnershipHistoryRepository,
             PetRepository petRepository,
             UserProfileRepository userProfileRepository,
             SpringDataNotificationRepository notificationRepository,
             ObjectProvider<NotificationService> notificationServiceProvider) {
         this.adoptionRequestRepository = adoptionRequestRepository;
+        this.adoptionRequestEventRepository = adoptionRequestEventRepository;
         this.petOwnershipHistoryRepository = petOwnershipHistoryRepository;
         this.petRepository = petRepository;
         this.userProfileRepository = userProfileRepository;
@@ -99,6 +105,8 @@ public class AdoptionRequestService {
                 command.message());
 
         AdoptionRequest saved = adoptionRequestRepository.save(request);
+        adoptionRequestEventRepository.save(new AdoptionRequestEvent(
+                saved.getId(), adopterId, saved.getStatus(), null));
 
         // NotificaciÃ³n persistida para el dueÃ±o de la mascota
         String content = String.format("%s ha solicitado adoptar a %s", adopterName, pet.getName());
@@ -127,6 +135,18 @@ public class AdoptionRequestService {
     public List<AdoptionRequestResponse> getMyRequests(UUID adopterId) {
         return adoptionRequestRepository.findByAdopterId(adopterId).stream()
                 .map(AdoptionRequestResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdoptionRequestEventResponse> getRequestTimeline(UUID actorId, UUID requestId) {
+        AdoptionRequest request = adoptionRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Solicitud de adopción no encontrada"));
+        if (!request.getAdopterId().equals(actorId) && !request.getOwnerId().equals(actorId)) {
+            throw new IllegalStateException("No tienes permisos para consultar esta solicitud");
+        }
+        return adoptionRequestEventRepository.findByRequestIdOrderByCreatedAtAsc(requestId).stream()
+                .map(event -> AdoptionRequestEventResponse.from(event, resolveUserName(event.getActorId())))
                 .toList();
     }
 
@@ -284,6 +304,8 @@ public class AdoptionRequestService {
         }
 
         AdoptionRequest saved = adoptionRequestRepository.save(request);
+        adoptionRequestEventRepository.save(new AdoptionRequestEvent(
+                saved.getId(), actorId, newStatus, null));
 
         // Notificar al solicitante del cambio
         notifyAdoptionChange(request);

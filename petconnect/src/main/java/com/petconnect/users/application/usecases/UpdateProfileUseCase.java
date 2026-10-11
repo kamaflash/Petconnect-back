@@ -55,13 +55,17 @@ public class UpdateProfileUseCase {
                     data.bio(),
                     data.dateOfBirth());
             profile.updateLocation(data.location(), data.latitude(), data.longitude());
-            profile.updateProfileType(data.profileType());
             profile.updateTypeSpecificFields(
                     data.specialty(),
                     data.licenseNumber(),
                     data.charityNumber(),
                     data.storeName(),
                     data.website());
+            // vet/shelter se aprueban automáticamente si la acreditación es
+            // válida (lanza InvalidProfileCredentialException si no); el resto
+            // se aplica directamente. El orden importa: primero se guardan los
+            // números y después se validan.
+            profile.requestProfileType(data.profileType());
         }
 
         return userProfileRepository.save(profile);

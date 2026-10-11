@@ -51,6 +51,10 @@ public class UserProfile extends BaseEntity {
     @Column(nullable = false, length = 20)
     private String profileType;
 
+    /** Cambio de tipo (vet/shelter) pendiente de aprobación de un administrador. */
+    @Column(length = 20)
+    private String pendingProfileType;
+
     // Campos específicos por tipo de perfil
     @Column(length = 100)
     private String specialty; // Para vet y trainer
@@ -100,10 +104,66 @@ public class UserProfile extends BaseEntity {
         this.website = website;
     }
 
-    public void updateProfileType(String profileType) {
-        if (profileType != null && !profileType.isBlank()) {
-            this.profileType = profileType;
+    /** Los tipos "vet" y "shelter" requieren aprobación de un administrador. */
+    public static boolean requiresApproval(String profileType) {
+        if (profileType == null || profileType.isBlank()) {
+            return false;
         }
+        String normalized = profileType.trim().toLowerCase();
+        return normalized.equals("vet") || normalized.equals("shelter");
+    }
+
+    /**
+     * Solicita un cambio de tipo. Los tipos profesionales (vet/shelter) se
+     * aprueban automaticamente solo si el numero acreditativo guardado tiene
+     * formato valido; en caso contrario se rechazan con excepcion y no queda
+     * nada pendiente. Los demas tipos se siguen aplicando directamente.
+     */
+    public void requestProfileType(String requestedType) {
+        if (requestedType == null || requestedType.isBlank()) {
+            return;
+        }
+        String requested = requestedType.trim();
+        if (requested.equalsIgnoreCase(this.profileType)) {
+            return;
+        }
+        if (requiresApproval(requested)) {
+            String normalized = requested.toLowerCase();
+            if (normalized.equals("vet")) {
+                if (!ProfileCredentialValidator.isValidLicenseNumber(this.licenseNumber)) {
+                    throw new com.petconnect.users.domain.exceptions.InvalidProfileCredentialException(
+                            "licenseNumber",
+                            "Numero de colegiado invalido. Formato esperado: M-12345 o COLVET-M-12345 "
+                                    + "con prefijo de provincia valido.");
+                }
+            } else {
+                if (!ProfileCredentialValidator.isValidCharityNumber(this.charityNumber)) {
+                    throw new com.petconnect.users.domain.exceptions.InvalidProfileCredentialException(
+                            "charityNumber",
+                            "Numero de registro invalido. Formato esperado: CIF valido (p. ej. G-12345674) "
+                                    + "o referencia autonomica (p. ej. ASOC-2021-4582).");
+                }
+            }
+            // Acreditacion valida: aprobacion automatica, sin pasar por admin.
+            this.profileType = normalized;
+            this.pendingProfileType = null;
+        } else {
+            this.profileType = requested;
+            this.pendingProfileType = null;
+        }
+    }
+
+    /** Aprueba la solicitud pendiente y la convierte en el tipo activo. */
+    public void approvePendingProfileType() {
+        if (this.pendingProfileType != null && !this.pendingProfileType.isBlank()) {
+            this.profileType = this.pendingProfileType;
+            this.pendingProfileType = null;
+        }
+    }
+
+    /** Descarta la solicitud pendiente (rechazo o cancelación por el propio usuario). */
+    public void rejectPendingProfileType() {
+        this.pendingProfileType = null;
     }
 
     public void updateLocation(String location, Double latitude, Double longitude) {
@@ -182,6 +242,10 @@ public class UserProfile extends BaseEntity {
 
     public String getProfileType() {
         return profileType;
+    }
+
+    public String getPendingProfileType() {
+        return pendingProfileType;
     }
 
     public String getSpecialty() {

@@ -55,6 +55,16 @@ public class JpaPostRepositoryAdapter implements PostRepository {
     }
 
     @Override
+    public List<Post> findByPetId(UUID petId) {
+        return springDataPostRepository.findByPetId(petId);
+    }
+
+    @Override
+    public Page<Post> findByPetIdAndActiveTrue(UUID petId, Pageable pageable) {
+        return springDataPostRepository.findByPetIdAndActiveTrue(petId, pageable);
+    }
+
+    @Override
     public Post save(Post post) {
         return springDataPostRepository.save(post);
     }
@@ -64,3 +74,5 @@ public class JpaPostRepositoryAdapter implements PostRepository {
         springDataPostRepository.delete(post);
     }
 }
+
+

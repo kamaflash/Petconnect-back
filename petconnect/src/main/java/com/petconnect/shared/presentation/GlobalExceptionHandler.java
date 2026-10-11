@@ -3,6 +3,7 @@ package com.petconnect.shared.presentation;
 import com.petconnect.auth.domain.exceptions.AuthException;
 import com.petconnect.pets.domain.exceptions.PetNotFoundException;
 import com.petconnect.users.domain.exceptions.UserNotFoundException;
+import com.petconnect.users.domain.exceptions.InvalidProfileCredentialException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -53,6 +54,15 @@ public class GlobalExceptionHandler {
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
         problem.setTitle("Validation Error");
         problem.setProperty("errors", errors);
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidProfileCredentialException.class)
+    public ProblemDetail handleInvalidProfileCredential(InvalidProfileCredentialException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Invalid Profile Credential");
+        problem.setProperty("field", ex.getField());
         problem.setProperty("timestamp", Instant.now());
         return problem;
     }

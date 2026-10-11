@@ -28,6 +28,11 @@ public class JpaUserProfileRepositoryAdapter implements UserProfileRepository {
     }
 
     @Override
+    public List<UserProfile> findByPendingProfileTypeIsNotNull() {
+        return springDataUserProfileRepository.findByPendingProfileTypeIsNotNull();
+    }
+
+    @Override
     public List<UserProfile> findAll() {
         return springDataUserProfileRepository.findAll();
     }

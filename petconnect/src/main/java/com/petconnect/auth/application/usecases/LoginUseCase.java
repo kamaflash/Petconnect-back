@@ -88,7 +88,8 @@ public class LoginUseCase {
                         profile.getLicenseNumber(),
                         profile.getCharityNumber(),
                         profile.getStoreName(),
-                        profile.getWebsite()))
+                        profile.getWebsite(),
+                        profile.getPendingProfileType()))
                 .orElse(null);
 
         log.info("Login successful: userId={}, email={}", authUser.getId(), authUser.getEmail());
