@@ -18,6 +18,8 @@ import com.petconnect.pets.domain.Pet;
 import com.petconnect.pets.domain.repositories.PetRepository;
 import com.petconnect.shared.infrastructure.websocket.NotificationService;
 import com.petconnect.social.domain.Notification;
+import com.petconnect.social.domain.Post;
+import com.petconnect.social.domain.repositories.PostRepository;
 import com.petconnect.social.infrastructure.persistence.SpringDataNotificationRepository;
 import com.petconnect.users.domain.UserProfile;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
@@ -44,6 +46,7 @@ public class AdoptionRequestService {
     private final PetRepository petRepository;
     private final UserProfileRepository userProfileRepository;
     private final SpringDataNotificationRepository notificationRepository;
+    private final PostRepository postRepository;
     private final ObjectProvider<NotificationService> notificationServiceProvider;
 
     public AdoptionRequestService(
@@ -53,6 +56,7 @@ public class AdoptionRequestService {
             PetRepository petRepository,
             UserProfileRepository userProfileRepository,
             SpringDataNotificationRepository notificationRepository,
+            PostRepository postRepository,
             ObjectProvider<NotificationService> notificationServiceProvider) {
         this.adoptionRequestRepository = adoptionRequestRepository;
         this.adoptionRequestEventRepository = adoptionRequestEventRepository;
@@ -60,6 +64,7 @@ public class AdoptionRequestService {
         this.petRepository = petRepository;
         this.userProfileRepository = userProfileRepository;
         this.notificationRepository = notificationRepository;
+        this.postRepository = postRepository;
         this.notificationServiceProvider = notificationServiceProvider;
     }
 
@@ -338,6 +343,10 @@ public class AdoptionRequestService {
         if (!pet.getOwnerId().equals(request.getOwnerId())) {
             throw new IllegalStateException("La mascota ya fue adoptada por otro usuario");
         }
+        // Guardamos el propietario anterior y la imagen antes de transferir,
+        // para poder publicar en su nombre que la mascota encontró hogar.
+        UUID previousOwnerId = pet.getOwnerId();
+        String petImage = pet.getAvatarUrl();
         pet.setOwnerId(request.getAdopterId());
         pet.setAvailableForAdoption(false);
         pet.setAdoptionDate(LocalDate.now());
@@ -350,6 +359,43 @@ public class AdoptionRequestService {
                 request.getAdopterId(),
                 OwnershipChangeReason.ADOPTION_COMPLETED,
                 request.getId()));
+
+        // Publicar, en nombre del propietario anterior, que la mascota ha
+        // encontrado un nuevo hogar. No debe romper el flujo de adopción si falla.
+        publishAdoptionCompletedPost(previousOwnerId, pet, petImage, request.getAdopterName());
+    }
+
+    /**
+     * Publica un post anunciando que la mascota ha encontrado un nuevo hogar,
+     * atribuido al propietario anterior. Además retira el post de "en adopción"
+     * previo (misma mascota) para no dejar publicaciones obsoletas activas.
+     */
+    private void publishAdoptionCompletedPost(UUID previousOwnerId, Pet pet, String petImage, String adopterName) {
+        try {
+            // Desactivar el post de adopción anterior de esta mascota si existe.
+            postRepository.findByPetId(pet.getId()).stream()
+                    .filter(Post::isActive)
+                    .findFirst()
+                    .ifPresent(existing -> {
+                        existing.softDelete();
+                        postRepository.save(existing);
+                    });
+
+            String caption = String.format(
+                    "¡%s ha encontrado un nuevo hogar! 🏠🎉 Gracias %s por darle una familia.",
+                    pet.getName(),
+                    (adopterName == null || adopterName.isBlank()) ? "a su nueva familia" : adopterName);
+            Post adoptedPost = new Post(
+                    previousOwnerId,
+                    petImage == null ? "" : petImage,
+                    caption,
+                    "#Adopción #AdoptaNoCompres #NuevoHogar",
+                    pet.getId());
+            postRepository.save(adoptedPost);
+        } catch (Exception e) {
+            log.warn("No se pudo publicar el post de adopción completada para la mascota {}: {}",
+                    pet.getId(), e.getMessage());
+        }
     }
 
     private void notifyAdoptionChange(AdoptionRequest request) {

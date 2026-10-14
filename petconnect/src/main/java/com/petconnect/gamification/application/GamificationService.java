@@ -278,7 +278,7 @@ public class GamificationService {
         return switch (actionType) {
             case GENERATE_POST -> List.of("first_post", "ten_posts");
             case CREATE_COMMENT -> List.of("fifty_comments", "helper_heart");
-            case LIKE -> List.of("like_dropper");
+            case LIKE -> List.of("like_action");
             case FOLLOW -> List.of("follow_ten");
             case PET_REGISTERED -> List.of("first_pet", "three_pets");
             case PROFILE_COMPLETED -> List.of("profile_complete");

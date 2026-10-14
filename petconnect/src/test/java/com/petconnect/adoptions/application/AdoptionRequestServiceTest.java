@@ -8,6 +8,7 @@ import com.petconnect.adoptions.domain.repositories.PetOwnershipHistoryRepositor
 import com.petconnect.adoptions.infrastructure.persistence.SpringDataAdoptionRequestEventRepository;
 import com.petconnect.pets.domain.repositories.PetRepository;
 import com.petconnect.shared.infrastructure.websocket.NotificationService;
+import com.petconnect.social.domain.repositories.PostRepository;
 import com.petconnect.social.infrastructure.persistence.SpringDataNotificationRepository;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +41,7 @@ class AdoptionRequestServiceTest {
                 mock(PetRepository.class),
                 mock(UserProfileRepository.class),
                 mock(SpringDataNotificationRepository.class),
+                mock(PostRepository.class),
                 mock(ObjectProvider.class));
     }
 
