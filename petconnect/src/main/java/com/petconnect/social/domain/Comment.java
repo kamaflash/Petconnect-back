@@ -29,6 +29,10 @@ public class Comment extends BaseEntity {
     @Column(name = "active", nullable = false)
     private boolean active;
 
+    /** El autor de la pregunta marca este comentario como respuesta solución. */
+    @Column(name = "is_solution", nullable = false)
+    private boolean solution;
+
     protected Comment() {
         super();
     }
@@ -81,5 +85,14 @@ public class Comment extends BaseEntity {
 
     public boolean isActive() {
         return active;
+    }
+
+    public boolean isSolution() {
+        return solution;
+    }
+
+    /** Marca o desmarca esta respuesta como la solución elegida por el autor. */
+    public void setSolution(boolean solution) {
+        this.solution = solution;
     }
 }

@@ -29,4 +29,8 @@ public interface SpringDataCommentRepository extends JpaRepository<Comment, UUID
 
     @Query("SELECT c FROM Comment c WHERE c.targetId = :targetId AND c.targetType = :targetType ORDER BY c.createdAt ASC")
     List<Comment> findCommentsByTarget(@Param("targetId") UUID targetId, @Param("targetType") String targetType);
+
+    @Query("SELECT c FROM Comment c WHERE c.targetId = :targetId AND c.targetType = :targetType AND c.solution = true ORDER BY c.createdAt ASC")
+    List<Comment> findByTargetIdAndTargetTypeAndSolutionTrue(@Param("targetId") UUID targetId,
+            @Param("targetType") String targetType);
 }

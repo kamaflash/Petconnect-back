@@ -1,6 +1,7 @@
 package com.petconnect.social.infrastructure.persistence;
 
 import com.petconnect.social.domain.Post;
+import com.petconnect.social.domain.PostIntent;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,5 +21,10 @@ public interface SpringDataPostRepository extends JpaRepository<Post, UUID> {
     List<Post> findByPetId(UUID petId);
 
     Page<Post> findByPetIdAndActiveTrue(UUID petId, Pageable pageable);
-}
 
+    /** Posts activos de una intencion concreta. */
+    Page<Post> findByActiveTrueAndIntent(PostIntent intent, Pageable pageable);
+
+    /** Posts activos de los autores indicados y de una intencion concreta. */
+    Page<Post> findByActiveTrueAndAuthorIdInAndIntent(List<UUID> authorIds, PostIntent intent, Pageable pageable);
+}

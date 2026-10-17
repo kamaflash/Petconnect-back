@@ -83,6 +83,16 @@ public class LostPetReport extends BaseEntity {
             com.petconnect.pets.domain.Species species, String breed, String color,
             String description, String photoUrl, LocalDate lostDate,
             String lastSeenArea, Double latitude, Double longitude, Double rewardAmount) {
+        this(reporterId, petId, petName, species, breed, color, description, photoUrl,
+                lostDate, lastSeenArea, latitude, longitude, rewardAmount,
+                LostPetReportStatus.LOST);
+    }
+
+    public LostPetReport(UUID reporterId, UUID petId, String petName,
+            com.petconnect.pets.domain.Species species, String breed, String color,
+            String description, String photoUrl, LocalDate lostDate,
+            String lastSeenArea, Double latitude, Double longitude, Double rewardAmount,
+            LostPetReportStatus status) {
         super();
         this.reporterId = reporterId;
         this.petId = petId;
@@ -97,7 +107,7 @@ public class LostPetReport extends BaseEntity {
         this.latitude = latitude;
         this.longitude = longitude;
         this.rewardAmount = rewardAmount;
-        this.status = LostPetReportStatus.LOST;
+        this.status = status != null ? status : LostPetReportStatus.LOST;
         this.sightingsCount = 0;
         this.active = true;
     }

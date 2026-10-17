@@ -149,12 +149,13 @@ public class LostPetService {
                 request.lastSeenArea().trim(),
                 request.latitude(),
                 request.longitude(),
-                validateReward(request.rewardAmount()));
+                validateReward(request.rewardAmount()),
+                request.status());
 
         LostPetReport saved = reportRepository.save(report);
 
         // Si el aviso referencia una mascota propia, se marca como perdida.
-        if (saved.getPetId() != null) {
+        if (saved.getPetId() != null && saved.getStatus() == LostPetReportStatus.LOST) {
             petRepository.findById(saved.getPetId()).ifPresent(pet -> {
                 if (pet.getOwnerId().equals(reporterId) && !pet.isLost()) {
                     pet.markAsLost(saved.getLostDate());
@@ -164,7 +165,11 @@ public class LostPetService {
             });
         }
 
-        notifyNearby(saved, "LOST_PET_ALERT");
+        // Solo los avisos LOST generan alerta de mascota perdida a personas cercanas;
+        // un avistamiento FOUND no debe disparar la misma notificación.
+        if (saved.getStatus() == LostPetReportStatus.LOST) {
+            notifyNearby(saved, "LOST_PET_ALERT");
+        }
         return toResponse(saved, reporterId, null, null);
     }
 

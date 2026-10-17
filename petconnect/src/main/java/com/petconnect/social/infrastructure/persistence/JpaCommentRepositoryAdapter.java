@@ -79,4 +79,9 @@ public class JpaCommentRepositoryAdapter implements CommentRepository {
     public List<Comment> findRepliesByParentId(UUID parentId) {
         return springDataCommentRepository.findRepliesByParentId(parentId);
     }
+
+    @Override
+    public List<Comment> findByTargetIdAndTargetTypeAndSolutionTrue(UUID targetId, String targetType) {
+        return springDataCommentRepository.findByTargetIdAndTargetTypeAndSolutionTrue(targetId, targetType);
+    }
 }

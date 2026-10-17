@@ -306,6 +306,7 @@ public class CommentController {
             String authorAvatarUrl,
             String createdAt,
             String parentId,
+            boolean solution,
             List<CommentResponse> replies) {
         public static CommentResponse fromDomain(Comment comment, UserProfile author) {
             String parentIdStr = comment.getParentId() != null ? comment.getParentId().toString() : null;
@@ -321,6 +322,7 @@ public class CommentController {
                         "",
                         comment.getCreatedAt().toString(),
                         parentIdStr,
+                        comment.isSolution(),
                         List.of());
             }
             return new CommentResponse(
@@ -334,6 +336,7 @@ public class CommentController {
                     author.getAvatarUrl(),
                     comment.getCreatedAt().toString(),
                     parentIdStr,
+                    comment.isSolution(),
                     List.of());
         }
 
@@ -341,7 +344,7 @@ public class CommentController {
             return new CommentResponse(
                     this.id, this.userId, this.targetId, this.targetType,
                     this.content, this.authorFirstName, this.authorLastName,
-                    this.authorAvatarUrl, this.createdAt, this.parentId, replies);
+                    this.authorAvatarUrl, this.createdAt, this.parentId, this.solution, replies);
         }
     }
 }

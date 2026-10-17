@@ -1,6 +1,7 @@
 package com.petconnect.social.infrastructure.persistence;
 
 import com.petconnect.social.domain.Post;
+import com.petconnect.social.domain.PostIntent;
 import com.petconnect.social.domain.repositories.PostRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -62,6 +63,17 @@ public class JpaPostRepositoryAdapter implements PostRepository {
     @Override
     public Page<Post> findByPetIdAndActiveTrue(UUID petId, Pageable pageable) {
         return springDataPostRepository.findByPetIdAndActiveTrue(petId, pageable);
+    }
+
+    @Override
+    public Page<Post> findActiveByIntent(PostIntent intent, Pageable pageable) {
+        return springDataPostRepository.findByActiveTrueAndIntent(intent, pageable);
+    }
+
+    @Override
+    public Page<Post> findActiveByAuthorIdInAndIntent(List<UUID> authorIds, PostIntent intent,
+            Pageable pageable) {
+        return springDataPostRepository.findByActiveTrueAndAuthorIdInAndIntent(authorIds, intent, pageable);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.petconnect.social.domain.repositories;
 
 import com.petconnect.social.domain.Post;
+import com.petconnect.social.domain.PostIntent;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -27,6 +28,10 @@ public interface PostRepository {
     Page<Post> findActiveByAuthorIdIn(List<UUID> authorIds, Pageable pageable);
 
     /** Devuelve una pÃƒÆ’Ã‚Â¡gina de posts activos de los autores indicados. */
+    Page<Post> findActiveByIntent(PostIntent intent, Pageable pageable);
+
+    Page<Post> findActiveByAuthorIdInAndIntent(List<UUID> authorIds, PostIntent intent, Pageable pageable);
+
     List<Post> findByPetId(UUID petId);
 
     Page<Post> findByPetIdAndActiveTrue(UUID petId, Pageable pageable);

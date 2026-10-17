@@ -75,7 +75,7 @@ class LostPetServiceTest {
     private LostPetDtos.CreateLostPetReport createRequest() {
         return new LostPetDtos.CreateLostPetReport(null, "Rocky", Species.DOG, "Bulldog",
                 "Marron", "Lleva collar rojo", null, LocalDate.now().minusDays(1),
-                "Parque Central", 40.4168, -3.7038, 100d);
+                "Parque Central", 40.4168, -3.7038, 100d, LostPetReportStatus.LOST);
     }
 
     private LostPetDtos.UpdateLostPetReport updateRequest() {
@@ -272,7 +272,7 @@ class LostPetServiceTest {
         assertEquals(400, assertThrows(ResponseStatusException.class,
                 () -> service.create(reporterId, new LostPetDtos.CreateLostPetReport(null, "Rocky",
                         Species.DOG, null, null, null, null, LocalDate.now().plusDays(1), "Parque",
-                        null, null, null)))
+                        null, null, null, LostPetReportStatus.LOST)))
                 .getStatusCode().value());
     }
 
@@ -281,7 +281,7 @@ class LostPetServiceTest {
         assertEquals(400, assertThrows(ResponseStatusException.class,
                 () -> service.create(reporterId, new LostPetDtos.CreateLostPetReport(null, "Rocky",
                         Species.DOG, null, null, null, null, LocalDate.now(), "Parque", null, null,
-                        -5d)))
+                        -5d, LostPetReportStatus.LOST)))
                 .getStatusCode().value());
     }
 
@@ -290,7 +290,7 @@ class LostPetServiceTest {
         assertEquals(400, assertThrows(ResponseStatusException.class,
                 () -> service.create(reporterId, new LostPetDtos.CreateLostPetReport(null, "Rocky",
                         Species.DOG, null, null, null, null, LocalDate.now(), "   ", null, null,
-                        null)))
+                        null, LostPetReportStatus.LOST)))
                 .getStatusCode().value());
     }
 

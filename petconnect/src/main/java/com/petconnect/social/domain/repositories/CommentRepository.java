@@ -31,4 +31,7 @@ public interface CommentRepository {
     List<Comment> findTopLevelCommentsByTarget(UUID targetId, String targetType);
 
     List<Comment> findRepliesByParentId(UUID parentId);
+
+    /** Respuestas activas de un objetivo concreto marcadas como solución. */
+    List<Comment> findByTargetIdAndTargetTypeAndSolutionTrue(UUID targetId, String targetType);
 }

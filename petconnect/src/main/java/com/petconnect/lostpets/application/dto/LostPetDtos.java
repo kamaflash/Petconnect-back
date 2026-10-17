@@ -33,7 +33,8 @@ public final class LostPetDtos {
             String lastSeenArea,
             Double latitude,
             Double longitude,
-            Double rewardAmount) {
+            Double rewardAmount,
+            LostPetReportStatus status) {
     }
 
     public record UpdateLostPetReport(

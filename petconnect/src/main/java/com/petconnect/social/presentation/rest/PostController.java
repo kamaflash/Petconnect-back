@@ -5,6 +5,10 @@ import com.petconnect.shared.domain.Like.TargetType;
 import com.petconnect.shared.domain.repositories.LikeRepository;
 import com.petconnect.shared.infrastructure.services.CloudinaryService;
 import com.petconnect.social.domain.Post;
+import com.petconnect.social.domain.Comment;
+import com.petconnect.social.domain.PostIntent;
+import com.petconnect.shared.infrastructure.security.CurrentUserService;
+import com.petconnect.social.domain.repositories.CommentRepository;
 import com.petconnect.social.domain.TrendingTopic;
 import com.petconnect.social.domain.repositories.PostRepository;
 import com.petconnect.social.domain.repositories.FollowRepository;
@@ -44,6 +48,8 @@ public class PostController {
     private final LikeRepository likeRepository;
     private final FollowRepository followRepository;
     private final SpringDataTrendingTopicRepository trendingTopicRepository;
+    private final CommentRepository commentRepository;
+    private final CurrentUserService currentUserService;
 
     @Autowired
     private ApplicationEventPublisher applicationEventPublisher;
@@ -53,13 +59,17 @@ public class PostController {
             @Autowired(required = false) CloudinaryService cloudinaryService,
             LikeRepository likeRepository,
             FollowRepository followRepository,
-            SpringDataTrendingTopicRepository trendingTopicRepository) {
+            SpringDataTrendingTopicRepository trendingTopicRepository,
+            CommentRepository commentRepository,
+            CurrentUserService currentUserService) {
         this.postRepository = postRepository;
         this.userProfileRepository = userProfileRepository;
         this.cloudinaryService = cloudinaryService;
         this.likeRepository = likeRepository;
         this.followRepository = followRepository;
         this.trendingTopicRepository = trendingTopicRepository;
+        this.commentRepository = commentRepository;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping("/posts")
@@ -93,6 +103,10 @@ public class PostController {
             @RequestPart("authorId") String authorId,
             @RequestPart("caption") String caption,
             @RequestPart(value = "tags", required = false) String tags,
+            @RequestPart(value = "intent", required = false) String intent,
+            @RequestPart(value = "location", required = false) String location,
+            @RequestPart(value = "latitude", required = false) String latitude,
+            @RequestPart(value = "longitude", required = false) String longitude,
             @RequestPart(value = "image", required = false) MultipartFile image) {
         log.info("POST /api/v1/social/posts - authorId: {}, caption: {}, tags: {}", authorId, caption, tags);
 
@@ -152,7 +166,15 @@ public class PostController {
                 }
             }
 
-            Post post = new Post(authorUuid, imageUrl, caption, processedTags);
+            Double lat = parseCoordinate(latitude);
+            Double lon = parseCoordinate(longitude);
+            if ((latitude != null && !latitude.isBlank() && lat == null)
+                    || (longitude != null && !longitude.isBlank() && lon == null)) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            Post post = new Post(authorUuid, imageUrl, caption, processedTags, null,
+                    PostIntent.parse(intent), location, lat, lon);
             Post saved = postRepository.save(post);
             log.info("Post saved with id: {}, tags: {}", saved.getId(), saved.getTags());
             publishGamification(ActionType.GENERATE_POST, authorUuid);
@@ -166,6 +188,18 @@ public class PostController {
         }
     }
 
+    /** Recibe la coordenada como texto del multipart: vacio es ausente, texto no numerico es 400. */
+    private static Double parseCoordinate(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Double.valueOf(value.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     @PutMapping("/posts/{postId}")
     public ResponseEntity<Post> updatePost(@PathVariable UUID postId, @RequestBody UpdatePostRequest request) {
         log.debug("PUT /api/v1/social/posts/{}", postId);
@@ -176,6 +210,10 @@ public class PostController {
                     }
                     if (request.caption() != null) {
                         existing.setCaption(request.caption());
+                    }
+                    if (request.intent() != null) {
+                        existing.setIntent(PostIntent.parse(request.intent()));
+                    existing.setLocation(request.location(), request.latitude(), request.longitude());
                     }
                     Post saved = postRepository.save(existing);
                     return ResponseEntity.ok(saved);
@@ -246,7 +284,8 @@ public class PostController {
     public ResponseEntity<Page<Post>> getPostsFromFollowing(
             @PathVariable UUID userId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String intent) {
         log.debug("GET /api/v1/social/posts/following/{} - page: {}, size: {}", userId, page, size);
 
         List<UUID> followingIds = followRepository.findByFollowerId(userId).stream()
@@ -256,11 +295,17 @@ public class PostController {
         followingIds.add(userId);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Post> posts = postRepository.findActiveByAuthorIdIn(followingIds, pageable);
+        PostIntent intentFilter = PostIntent.parse(intent);
+
+        Page<Post> posts = intentFilter == null
+                ? postRepository.findActiveByAuthorIdIn(followingIds, pageable)
+                : postRepository.findActiveByAuthorIdInAndIntent(followingIds, intentFilter, pageable);
 
         if (posts.getTotalElements() == 0) {
             log.info("No posts found for followed users, returning all active posts");
-            posts = postRepository.findActivePaginated(pageable);
+            posts = intentFilter == null
+                    ? postRepository.findActivePaginated(pageable)
+                    : postRepository.findActiveByIntent(intentFilter, pageable);
         }
 
         log.info("Returning page {} with {} posts for user {}", page, posts.getNumberOfElements(), userId);
@@ -272,15 +317,108 @@ public class PostController {
         @GetMapping("/posts/feed")
     public ResponseEntity<Page<Post>> getPublicFeed(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "9") int size) {
+            @RequestParam(defaultValue = "9") int size,
+            @RequestParam(required = false) String intent) {
         log.debug("GET /api/v1/social/posts/feed - page: {}, size: {}", page, size);
 
         // Return paginated active posts for public feed (social-page)
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Post> posts = postRepository.findActivePaginated(pageable);
+        PostIntent intentFilter = PostIntent.parse(intent);
+        Page<Post> posts = intentFilter == null
+                ? postRepository.findActivePaginated(pageable)
+                : postRepository.findActiveByIntent(intentFilter, pageable);
 
         log.info("Returning page {} with {} active posts (total: {})", page, posts.getNumberOfElements(), posts.getTotalElements());
         return ResponseEntity.ok(posts);
+    }
+
+    // ========== SOLUCION DE PREGUNTAS ==========
+
+    /**
+     * Marca una respuesta como la solucion elegida por el autor de la pregunta.
+     * Si ya habia otra, se desmarca para que solo exista una solucion activa.
+     */
+    @PostMapping("/posts/{postId}/solution/{commentId}")
+    public ResponseEntity<Post> markSolution(
+            @PathVariable UUID postId,
+            @PathVariable UUID commentId) {
+        log.debug("POST /api/v1/social/posts/{}/solution/{}", postId, commentId);
+
+        UUID currentUserId = currentUserService.getCurrentUserId().orElse(null);
+        if (currentUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Optional<Post> postOpt = postRepository.findById(postId);
+        if (postOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Post post = postOpt.get();
+
+        // Solo el autor de la publicacion puede elegir la solucion.
+        if (!post.getAuthorId().equals(currentUserId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        // La marca de solucion solo aplica a preguntas.
+        if (post.getIntentOrDefault() != PostIntent.QUESTION) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Optional<Comment> commentOpt = commentRepository.findById(commentId);
+        if (commentOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Comment comment = commentOpt.get();
+        // La respuesta debe pertenecer a esta publicacion.
+        if (!comment.getTargetId().equals(postId)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        // Desmarca cualquier solucion previa de la misma publicacion.
+        clearExistingSolution(postId);
+
+        comment.setSolution(true);
+        commentRepository.save(comment);
+        post.setSolved(true);
+        return ResponseEntity.ok(postRepository.save(post));
+    }
+
+    /**
+     * Retira la marca de solucion, dejando la pregunta de nuevo sin resolver.
+     */
+    @DeleteMapping("/posts/{postId}/solution")
+    public ResponseEntity<Post> clearSolution(@PathVariable UUID postId) {
+        log.debug("DELETE /api/v1/social/posts/{}/solution", postId);
+
+        UUID currentUserId = currentUserService.getCurrentUserId().orElse(null);
+        if (currentUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        return postRepository.findById(postId)
+                .map(post -> {
+                    if (!post.getAuthorId().equals(currentUserId)) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).<Post>build();
+                    }
+
+                    clearExistingSolution(postId);
+                    post.setSolved(false);
+                    return ResponseEntity.ok(postRepository.save(post));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /** Desmarca en bloque las respuestas marcadas como solucion de una publicacion. */
+    private void clearExistingSolution(UUID postId) {
+        List<Comment> currentSolutions =
+                commentRepository.findByTargetIdAndTargetTypeAndSolutionTrue(postId, "POST");
+        for (Comment current : currentSolutions) {
+            current.setSolution(false);
+            commentRepository.save(current);
+        }
     }
 
     // ========== GAMIFICATION ==========
@@ -305,8 +443,10 @@ public class PostController {
     }
 }
 
-record CreatePostRequest(UUID authorId, String imageUrl, String caption) {
+record CreatePostRequest(UUID authorId, String imageUrl, String caption, String intent,
+        String location, Double latitude, Double longitude) {
 }
 
-record UpdatePostRequest(String imageUrl, String caption) {
+record UpdatePostRequest(String imageUrl, String caption, String intent,
+        String location, Double latitude, Double longitude) {
 }
