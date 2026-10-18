@@ -18,6 +18,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -31,6 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -224,45 +229,52 @@ class LostPetServiceTest {
     // ========== FILTROS ==========
 
     @Test
-    void searchFiltersBySpeciesStatusAndProximity() {
+    void searchDelegatesFiltersToDatabaseAndOrdersByNewest() {
         LostPetReport dog = report();
-        LostPetReport cat = new LostPetReport(reporterId, null, "Misi", Species.CAT, null, null,
-                null, null, LocalDate.now().minusDays(1), "Centro", 40.42, -3.70, null);
-        cat.setId(UUID.randomUUID());
-        when(reportRepository.findByActiveTrueOrderByCreatedAtDesc()).thenReturn(List.of(dog, cat));
+        Page<LostPetReport> page = new PageImpl<>(List.of(dog));
+        when(reportRepository.searchActive(any(), any(), any(), any(), any(), any(), anyDouble(),
+                any(Pageable.class))).thenReturn(page);
 
-        assertEquals(2, service.search(null, null, null, null, null, null, null, null).size());
+        var result = service.search(null, null, null, null, null, null, null, null, 0, 10);
 
-        List<LostPetDtos.LostPetReportResponse> dogs = service.search(null, "DOG", null, null, null,
-                null, null, null);
-        assertEquals(1, dogs.size());
-        assertEquals("Rocky", dogs.get(0).petName());
+        assertEquals(1, result.totalElements());
+        assertEquals("Rocky", result.content().get(0).petName());
 
-        assertEquals(2, service.search(null, null, LostPetReportStatus.LOST, null, null, null,
-                null, null).size());
-
-        List<LostPetDtos.LostPetReportResponse> near = service.search(null, null, null, null, null,
-                40.4168, -3.7038, 5d);
-        assertEquals(2, near.size());
-        assertTrue(near.get(0).distanceKm() <= near.get(1).distanceKm());
-
-        assertTrue(service.search(null, null, null, null, null, 41.4, 2.17, 5d).isEmpty());
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(reportRepository).searchActive(eq(null), eq(null), eq(null), eq(null),
+                eq(null), eq(null), eq(-1d), pageable.capture());
+        assertEquals(0, pageable.getValue().getPageNumber());
+        assertEquals(10, pageable.getValue().getPageSize());
+        assertTrue(pageable.getValue().getSort().getOrderFor("createdAt").isDescending());
     }
 
     @Test
-    void searchFiltersByDateRange() {
-        LostPetReport recent = report();
-        LostPetReport old = new LostPetReport(reporterId, null, "Nieve", Species.DOG, null, null,
-                null, null, LocalDate.now().minusMonths(6), "Centro", null, null, null);
-        old.setId(UUID.randomUUID());
-        when(reportRepository.findByActiveTrueOrderByCreatedAtDesc())
-                .thenReturn(List.of(recent, old));
+    void searchSendsProximityFilterToDatabase() {
+        when(reportRepository.searchActive(any(), any(), any(), any(), any(), any(), anyDouble(),
+                any(Pageable.class))).thenReturn(Page.empty());
 
-        List<LostPetDtos.LostPetReportResponse> lastWeek = service.search(null, null, null,
-                LocalDate.now().minusWeeks(1), LocalDate.now(), null, null, null);
+        service.search(null, "DOG", LostPetReportStatus.LOST,
+                LocalDate.now().minusWeeks(1), LocalDate.now(),
+                40.4168, -3.7038, 5d, 1, 10);
 
-        assertEquals(1, lastWeek.size());
-        assertEquals("Rocky", lastWeek.get(0).petName());
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(reportRepository).searchActive(eq(Species.DOG), eq(LostPetReportStatus.LOST),
+                eq(LocalDate.now().minusWeeks(1)), eq(LocalDate.now()),
+                eq(40.4168), eq(-3.7038), eq(5d), pageable.capture());
+        assertEquals(1, pageable.getValue().getPageNumber());
+    }
+
+    @Test
+    void searchClampsPageSize() {
+        when(reportRepository.searchActive(any(), any(), any(), any(), any(), any(), anyDouble(),
+                any(Pageable.class))).thenReturn(Page.empty());
+
+        service.search(null, null, null, null, null, null, null, null, 0, 500);
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(reportRepository).searchActive(any(), any(), any(), any(), any(), any(), anyDouble(),
+                pageable.capture());
+        assertEquals(50, pageable.getValue().getPageSize());
     }
 
     // ========== VALIDACIONES Y PRIVACIDAD ==========

@@ -6,6 +6,7 @@ import com.petconnect.adoptions.application.dto.AdoptionRequestResponse;
 import com.petconnect.adoptions.application.dto.AdoptionRequestEventResponse;
 import com.petconnect.adoptions.application.dto.CreateAdoptionRequest;
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
+import com.petconnect.shared.presentation.dto.PageResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import com.petconnect.gamification.application.events.XpEvent;
@@ -45,18 +46,26 @@ public class AdoptionRequestController {
         return ResponseEntity.ok(response);
     }
 
+    /** Mis solicitudes como adoptante, paginadas por fecha descendente. */
     @GetMapping("/my-requests")
-    public ResponseEntity<List<AdoptionRequestResponse>> getMyRequests(Authentication authentication) {
-        log.debug("GET /api/v1/adoptions/my-requests");
+    public ResponseEntity<PageResponse<AdoptionRequestResponse>> getMyRequests(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.debug("GET /api/v1/adoptions/my-requests page={} size={}", page, size);
         UUID adopterId = getUserId(authentication);
-        return ResponseEntity.ok(adoptionRequestService.getMyRequests(adopterId));
+        return ResponseEntity.ok(adoptionRequestService.getMyRequests(adopterId, page, size));
     }
 
+    /** Solicitudes recibidas sobre mis mascotas, paginadas (lo actual primero). */
     @GetMapping("/my-pets-requests")
-    public ResponseEntity<List<AdoptionRequestResponse>> getRequestsForMyPets(Authentication authentication) {
-        log.debug("GET /api/v1/adoptions/my-pets-requests");
+    public ResponseEntity<PageResponse<AdoptionRequestResponse>> getRequestsForMyPets(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.debug("GET /api/v1/adoptions/my-pets-requests page={} size={}", page, size);
         UUID ownerId = getUserId(authentication);
-        return ResponseEntity.ok(adoptionRequestService.getRequestsForMyPets(ownerId));
+        return ResponseEntity.ok(adoptionRequestService.getRequestsForMyPets(ownerId, page, size));
     }
 
     @GetMapping("/{requestId}/timeline")

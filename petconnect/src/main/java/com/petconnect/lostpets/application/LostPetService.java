@@ -12,9 +12,14 @@ import com.petconnect.social.domain.Notification;
 import com.petconnect.social.infrastructure.persistence.SpringDataNotificationRepository;
 import com.petconnect.users.domain.UserProfile;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
+import com.petconnect.shared.presentation.dto.PageResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +27,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -70,43 +74,29 @@ public class LostPetService {
 
     // ========== CONSULTAS ==========
 
+    /** Tamaño máximo de página admitido en los listados. */
+    private static final int MAX_PAGE_SIZE = 50;
+
+    /**
+     * Búsqueda paginada de avisos (10×10 por defecto), siempre ordenada por
+     * fecha de creación descendente (lo más actual primero). Todos los filtros
+     * (especie, estado, fechas, proximidad) se aplican en base de datos.
+     */
     @Transactional(readOnly = true)
-    public List<LostPetDtos.LostPetReportResponse> search(UUID viewerId, String species,
+    public PageResponse<LostPetDtos.LostPetReportResponse> search(UUID viewerId, String species,
             LostPetReportStatus status, LocalDate from, LocalDate to,
-            Double latitude, Double longitude, Double radiusKm) {
+            Double latitude, Double longitude, Double radiusKm,
+            int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), clampSize(size),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        List<LostPetReport> reports = reportRepository.findByActiveTrueOrderByCreatedAtDesc();
+        Page<LostPetReport> result = reportRepository.searchActive(
+                parseSpecies(species).orElse(null), status, from, to,
+                latitude, longitude,
+                latitude != null && longitude != null ? resolveRadius(radiusKm) : -1d,
+                pageable);
 
-        if (species != null && !species.isBlank()) {
-            reports = reports.stream()
-                    .filter(report -> report.getSpecies() != null
-                            && report.getSpecies().name().equalsIgnoreCase(species.trim()))
-                    .toList();
-        }
-        if (status != null) {
-            reports = reports.stream().filter(report -> report.getStatus() == status).toList();
-        }
-        if (from != null || to != null) {
-            LocalDate effectiveFrom = from != null ? from : LocalDate.of(1970, 1, 1);
-            LocalDate effectiveTo = to != null ? to : LocalDate.now().plusYears(5);
-            reports = reports.stream()
-                    .filter(report -> !report.getLostDate().isBefore(effectiveFrom)
-                            && !report.getLostDate().isAfter(effectiveTo))
-                    .toList();
-        }
-
-        List<LostPetDtos.LostPetReportResponse> responses = reports.stream()
-                .map(report -> toResponse(report, viewerId, latitude, longitude))
-                .toList();
-
-        if (latitude != null && longitude != null) {
-            double radius = resolveRadius(radiusKm);
-            responses = responses.stream()
-                    .filter(response -> response.distanceKm() != null && response.distanceKm() <= radius)
-                    .sorted(Comparator.comparing(LostPetDtos.LostPetReportResponse::distanceKm))
-                    .toList();
-        }
-        return responses;
+        return PageResponse.from(result, report -> toResponse(report, viewerId, latitude, longitude));
     }
 
     @Transactional(readOnly = true)
@@ -115,18 +105,23 @@ public class LostPetService {
     }
 
     @Transactional(readOnly = true)
-    public List<LostPetDtos.LostPetReportResponse> getMyReports(UUID reporterId) {
-        return reportRepository.findByReporterIdOrderByCreatedAtDesc(reporterId).stream()
-                .map(report -> toResponse(report, reporterId, null, null))
-                .toList();
+    public PageResponse<LostPetDtos.LostPetReportResponse> getMyReports(UUID reporterId,
+            int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), clampSize(size),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<LostPetReport> result = reportRepository.findByReporterIdAndActiveTrue(reporterId, pageable);
+        return PageResponse.from(result, report -> toResponse(report, reporterId, null, null));
     }
 
     @Transactional(readOnly = true)
-    public List<LostPetDtos.LostPetSightingResponse> getSightings(UUID reportId) {
+    public PageResponse<LostPetDtos.LostPetSightingResponse> getSightings(UUID reportId,
+            int page, int size) {
         requireReport(reportId);
-        return sightingRepository.findByReportIdOrderBySightedAtDesc(reportId).stream()
-                .map(this::toSightingResponse)
-                .toList();
+        Pageable pageable = PageRequest.of(Math.max(page, 0), clampSize(size),
+                Sort.by(Sort.Direction.DESC, "sightedAt"));
+        return PageResponse.from(
+                sightingRepository.findByReportId(reportId, pageable),
+                this::toSightingResponse);
     }
 
     // ========== AVISOS ==========
@@ -399,6 +394,14 @@ public class LostPetService {
             return DEFAULT_NEARBY_RADIUS_KM;
         }
         return Math.min(radiusKm, 200d);
+    }
+
+    /** Sanea el tamaño de página: mínimo 1, máximo 50, por defecto 10. */
+    private static int clampSize(int size) {
+        if (size < 1) {
+            return 10;
+        }
+        return Math.min(size, MAX_PAGE_SIZE);
     }
 
     private String normalize(String value) {

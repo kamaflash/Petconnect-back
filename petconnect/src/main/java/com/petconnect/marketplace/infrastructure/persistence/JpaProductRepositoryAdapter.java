@@ -2,9 +2,11 @@ package com.petconnect.marketplace.infrastructure.persistence;
 
 import com.petconnect.marketplace.domain.Product;
 import com.petconnect.marketplace.domain.repositories.ProductRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,18 +25,26 @@ public class JpaProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
-    public List<Product> findAll() {
-        return springDataRepository.findByActiveTrue();
+    public Page<Product> findByActiveTrue(Pageable pageable) {
+        return springDataRepository.findByActiveTrue(pageable);
     }
 
     @Override
-    public List<Product> findBySellerId(UUID sellerId) {
-        return springDataRepository.findBySellerId(sellerId);
+    public Page<Product> findBySellerId(UUID sellerId, Pageable pageable) {
+        return springDataRepository.findBySellerId(sellerId, pageable);
     }
 
     @Override
-    public List<Product> findByCategory(String category) {
-        return springDataRepository.findByCategory(category);
+    public Page<Product> findByCategoryAndActiveTrue(String category, Pageable pageable) {
+        return springDataRepository.findByCategoryAndActiveTrue(category, pageable);
+    }
+
+    @Override
+    public Page<Product> searchActive(String category, String term,
+            BigDecimal minPrice, BigDecimal maxPrice, Boolean inStock,
+            Pageable pageable) {
+        return springDataRepository.searchActive(category, term,
+                minPrice, maxPrice, inStock, pageable);
     }
 
     @Override

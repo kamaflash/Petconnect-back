@@ -17,6 +17,7 @@ import com.petconnect.adoptions.domain.repositories.PetOwnershipHistoryRepositor
 import com.petconnect.pets.domain.Pet;
 import com.petconnect.pets.domain.repositories.PetRepository;
 import com.petconnect.shared.infrastructure.websocket.NotificationService;
+import com.petconnect.shared.presentation.dto.PageResponse;
 import com.petconnect.social.domain.Notification;
 import com.petconnect.social.domain.Post;
 import com.petconnect.social.domain.repositories.PostRepository;
@@ -26,6 +27,10 @@ import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,7 +91,8 @@ public class AdoptionRequestService {
 
         // Evitar solicitudes duplicadas: si el usuario ya tiene una solicitud activa
         // (no rechazada ni finalizada) para esta mascota, no puede volver a solicitarla.
-        boolean alreadyRequested = adoptionRequestRepository.findByAdopterId(adopterId).stream()
+        boolean alreadyRequested = adoptionRequestRepository.findByAdopterId(
+                adopterId, Pageable.unpaged()).stream()
                 .anyMatch(r -> r.getPetId().equals(command.petId())
                         && r.getStatus() != AdoptionStatus.REJECTED
                         && r.getStatus() != AdoptionStatus.COMPLETED);
@@ -137,10 +143,11 @@ public class AdoptionRequestService {
 
 
     @Transactional(readOnly = true)
-    public List<AdoptionRequestResponse> getMyRequests(UUID adopterId) {
-        return adoptionRequestRepository.findByAdopterId(adopterId).stream()
-                .map(AdoptionRequestResponse::from)
-                .toList();
+    /** Solicitudes del adoptante, paginadas por fecha de creación descendente. */
+    public PageResponse<AdoptionRequestResponse> getMyRequests(UUID adopterId, int page, int size) {
+        Page<AdoptionRequest> result = adoptionRequestRepository.findByAdopterId(
+                adopterId, newestFirst(page, size));
+        return PageResponse.from(result, AdoptionRequestResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -156,10 +163,18 @@ public class AdoptionRequestService {
     }
 
     @Transactional(readOnly = true)
-    public List<AdoptionRequestResponse> getRequestsForMyPets(UUID ownerId) {
-        return adoptionRequestRepository.findByOwnerId(ownerId).stream()
-                .map(AdoptionRequestResponse::from)
-                .toList();
+    /** Solicitudes sobre mascotas del propietario, paginadas (lo actual primero). */
+    public PageResponse<AdoptionRequestResponse> getRequestsForMyPets(UUID ownerId, int page, int size) {
+        Page<AdoptionRequest> result = adoptionRequestRepository.findByOwnerId(
+                ownerId, newestFirst(page, size));
+        return PageResponse.from(result, AdoptionRequestResponse::from);
+    }
+
+    /** Sanea el tamaño de página: mínimo 1, máximo 50, por defecto 10. */
+    private static Pageable newestFirst(int page, int size) {
+        int safeSize = size < 1 ? 10 : Math.min(size, 50);
+        return PageRequest.of(Math.max(page, 0), safeSize,
+                Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
     /**
@@ -169,7 +184,8 @@ public class AdoptionRequestService {
      */
         @Transactional(readOnly = true)
     public AdoptionHistoryResponse getHistory(UUID petId) {
-        List<AdoptionRequestResponse> requests = adoptionRequestRepository.findByPetId(petId).stream()
+        List<AdoptionRequestResponse> requests = adoptionRequestRepository.findByPetId(
+                petId, Pageable.unpaged()).stream()
                 .map(r -> AdoptionRequestResponse.from(r, resolveUserName(r.getOwnerId())))
                 .toList();
 

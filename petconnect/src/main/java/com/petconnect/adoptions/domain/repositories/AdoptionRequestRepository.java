@@ -1,19 +1,20 @@
 package com.petconnect.adoptions.domain.repositories;
 
 import com.petconnect.adoptions.domain.AdoptionRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface AdoptionRequestRepository {
     Optional<AdoptionRequest> findById(UUID id);
 
-    List<AdoptionRequest> findByAdopterId(UUID adopterId);
+    Page<AdoptionRequest> findByAdopterId(UUID adopterId, Pageable pageable);
 
-    List<AdoptionRequest> findByOwnerId(UUID ownerId);
+    Page<AdoptionRequest> findByOwnerId(UUID ownerId, Pageable pageable);
 
-    List<AdoptionRequest> findByPetId(UUID petId);
+    Page<AdoptionRequest> findByPetId(UUID petId, Pageable pageable);
 
     AdoptionRequest save(AdoptionRequest adoptionRequest);
 }

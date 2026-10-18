@@ -2,9 +2,10 @@ package com.petconnect.adoptions.infrastructure.persistence;
 
 import com.petconnect.adoptions.domain.AdoptionRequest;
 import com.petconnect.adoptions.domain.repositories.AdoptionRequestRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,18 +24,18 @@ public class JpaAdoptionRequestRepositoryAdapter implements AdoptionRequestRepos
     }
 
     @Override
-    public List<AdoptionRequest> findByAdopterId(UUID adopterId) {
-        return repository.findByAdopterIdOrderByCreatedAtDesc(adopterId);
+    public Page<AdoptionRequest> findByAdopterId(UUID adopterId, Pageable pageable) {
+        return repository.findByAdopterId(adopterId, pageable);
     }
 
     @Override
-    public List<AdoptionRequest> findByOwnerId(UUID ownerId) {
-        return repository.findByOwnerIdOrderByCreatedAtDesc(ownerId);
+    public Page<AdoptionRequest> findByOwnerId(UUID ownerId, Pageable pageable) {
+        return repository.findByOwnerId(ownerId, pageable);
     }
 
     @Override
-    public List<AdoptionRequest> findByPetId(UUID petId) {
-        return repository.findByPetIdOrderByCreatedAtDesc(petId);
+    public Page<AdoptionRequest> findByPetId(UUID petId, Pageable pageable) {
+        return repository.findByPetId(petId, pageable);
     }
 
     @Override

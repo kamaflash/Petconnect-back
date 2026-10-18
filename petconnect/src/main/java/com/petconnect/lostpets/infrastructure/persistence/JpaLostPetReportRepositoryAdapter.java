@@ -3,11 +3,12 @@ package com.petconnect.lostpets.infrastructure.persistence;
 import com.petconnect.lostpets.domain.LostPetReport;
 import com.petconnect.lostpets.domain.LostPetReportStatus;
 import com.petconnect.lostpets.domain.repositories.LostPetReportRepository;
-import com.petconnect.lostpets.application.LostPetService;
+import com.petconnect.pets.domain.Species;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,30 +27,17 @@ public class JpaLostPetReportRepositoryAdapter implements LostPetReportRepositor
     }
 
     @Override
-    public List<LostPetReport> findByActiveTrueOrderByCreatedAtDesc() {
-        return repository.findByActiveTrueOrderByCreatedAtDesc();
+    public Page<LostPetReport> searchActive(Species species, LostPetReportStatus status,
+            LocalDate from, LocalDate to,
+            Double latitude, Double longitude, double radiusKm,
+            Pageable pageable) {
+        return repository.searchActive(species, status, from, to,
+                latitude, longitude, radiusKm, pageable);
     }
 
     @Override
-    public List<LostPetReport> findByReporterIdOrderByCreatedAtDesc(UUID reporterId) {
-        return repository.findByReporterIdOrderByCreatedAtDesc(reporterId);
-    }
-
-    @Override
-    public List<LostPetReport> findByStatusAndActiveTrue(LostPetReportStatus status) {
-        return repository.findByStatusAndActiveTrue(status);
-    }
-
-    @Override
-    public List<LostPetReport> findBySpeciesAndActiveTrue(String species) {
-        return LostPetService.parseSpecies(species)
-                .map(repository::findBySpeciesAndActiveTrue)
-                .orElseGet(List::of);
-    }
-
-    @Override
-    public List<LostPetReport> findByLostDateBetweenAndActiveTrue(LocalDate from, LocalDate to) {
-        return repository.findByLostDateBetweenAndActiveTrue(from, to);
+    public Page<LostPetReport> findByReporterIdAndActiveTrue(UUID reporterId, Pageable pageable) {
+        return repository.findByReporterIdAndActiveTrue(reporterId, pageable);
     }
 
     @Override

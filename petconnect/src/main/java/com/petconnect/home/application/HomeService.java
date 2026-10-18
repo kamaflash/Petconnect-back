@@ -2,13 +2,18 @@ package com.petconnect.home.application;
 
 import com.petconnect.home.application.dto.AdoptionResponse;
 import com.petconnect.home.domain.*;
+import com.petconnect.home.domain.repositories.*;
 import com.petconnect.pets.application.dto.PetResponse;
 import com.petconnect.pets.domain.repositories.PetRepository;
+import com.petconnect.shared.presentation.dto.PageResponse;
 import com.petconnect.social.domain.Story;
 import com.petconnect.social.domain.repositories.StoryRepository;
-import com.petconnect.home.domain.repositories.*;
 import com.petconnect.gamification.application.GamificationService;
 import com.petconnect.gamification.domain.AchievementState;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,10 +70,11 @@ public class HomeService {
                 return vetServiceRepository.findByActiveTrue();
         }
 
-        public List<AdoptionResponse> getNewAdoptions() {
-                List<Adoption> adoptions = adoptionRepository.findByStatus("AVAILABLE");
-                return adoptions.stream()
-                                .map(adoption -> {
+        public PageResponse<AdoptionResponse> getNewAdoptions(int page, int size) {
+                Pageable pageable = PageRequest.of(Math.max(page, 0), clampSize(size),
+                                Sort.by(Sort.Direction.DESC, "createdAt"));
+                Page<Adoption> adoptions = adoptionRepository.findByStatus("AVAILABLE", pageable);
+                return PageResponse.from(adoptions, adoption -> {
                                         var pet = petRepository.findById(adoption.getPetId());
                                         PetResponse petResponse = pet.map(p -> new PetResponse(
                                                         p.getId(),
@@ -117,8 +123,12 @@ public class HomeService {
                                                         p.getLostDate(),
                                                         p.isAvailableForAdoption())).orElse(null);
                                         return AdoptionResponse.from(adoption, petResponse);
-                                })
-                                .toList();
+                                });
+        }
+
+        /** Sanea el tamaño de página: mínimo 1, máximo 50, por defecto 10. */
+        private static int clampSize(int size) {
+                return size < 1 ? 10 : Math.min(size, 50);
         }
 
         public List<Achievement> getUpcomingAchievements(UUID userId) {

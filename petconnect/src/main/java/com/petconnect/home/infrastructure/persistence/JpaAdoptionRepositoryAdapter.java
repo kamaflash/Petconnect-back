@@ -2,9 +2,10 @@ package com.petconnect.home.infrastructure.persistence;
 
 import com.petconnect.home.domain.Adoption;
 import com.petconnect.home.domain.repositories.AdoptionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -17,8 +18,8 @@ public class JpaAdoptionRepositoryAdapter implements AdoptionRepository {
     }
 
     @Override
-    public List<Adoption> findByStatus(String status) {
-        return repository.findByStatus(status);
+    public Page<Adoption> findByStatus(String status, Pageable pageable) {
+        return repository.findByStatus(status, pageable);
     }
 
     @Override

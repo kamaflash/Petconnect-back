@@ -5,11 +5,12 @@ import com.petconnect.marketplace.application.dto.ProductResponse;
 import com.petconnect.marketplace.application.usecases.CreateProductUseCase;
 import com.petconnect.marketplace.application.usecases.GetAllProductsUseCase;
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
+import com.petconnect.shared.presentation.dto.PageResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @RestController
@@ -26,20 +27,38 @@ public class ProductController {
         this.getAllProductsUseCase = getAllProductsUseCase;
     }
 
+    /**
+     * Catálogo paginado (10×10 por defecto, `createdAt` DESC). Cada cambio de
+     * filtro en el front llama con `page=0` y los filtros como query params.
+     */
     @GetMapping("/products")
-    public ResponseEntity<List<ProductResponse>> getAllProducts() {
-        return ResponseEntity.ok(getAllProductsUseCase.execute());
+    public ResponseEntity<PageResponse<ProductResponse>> getAllProducts(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String term,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) Boolean inStock,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(getAllProductsUseCase.execute(
+                category, term, minPrice, maxPrice, inStock, page, size));
     }
 
     @GetMapping("/products/seller")
-    public ResponseEntity<List<ProductResponse>> getMyProducts(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(getAllProductsUseCase.executeBySeller(userDetails.getUserId()));
+    public ResponseEntity<PageResponse<ProductResponse>> getMyProducts(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(getAllProductsUseCase.executeBySeller(
+                userDetails.getUserId(), page, size));
     }
 
     @GetMapping("/products/category/{category}")
-    public ResponseEntity<List<ProductResponse>> getProductsByCategory(@PathVariable String category) {
-        return ResponseEntity.ok(getAllProductsUseCase.executeByCategory(category));
+    public ResponseEntity<PageResponse<ProductResponse>> getProductsByCategory(
+            @PathVariable String category,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(getAllProductsUseCase.executeByCategory(category, page, size));
     }
 
     @PostMapping("/products")

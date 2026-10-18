@@ -5,6 +5,7 @@ import com.petconnect.lostpets.application.dto.LostPetDtos;
 import com.petconnect.lostpets.domain.LostPetReportStatus;
 import com.petconnect.pets.domain.Species;
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
+import com.petconnect.shared.presentation.dto.PageResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -37,8 +38,12 @@ public class LostPetController {
         this.lostPetService = lostPetService;
     }
 
+    /**
+     * Búsqueda paginada de avisos (10×10 por defecto), ordenada por fecha de
+     * creación descendente. Acepta `page` (base 0) y `size` (1–50).
+     */
     @GetMapping
-    public ResponseEntity<List<LostPetDtos.LostPetReportResponse>> search(
+    public ResponseEntity<PageResponse<LostPetDtos.LostPetReportResponse>> search(
             Authentication authentication,
             @RequestParam(required = false) String species,
             @RequestParam(required = false) LostPetReportStatus status,
@@ -46,17 +51,21 @@ public class LostPetController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
-            @RequestParam(required = false) Double radiusKm) {
-        log.debug("GET /api/v1/lost-pets species={} status={}", species, status);
+            @RequestParam(required = false) Double radiusKm,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.debug("GET /api/v1/lost-pets species={} status={} page={} size={}", species, status, page, size);
         UUID viewerId = currentUserId(authentication).orElse(null);
         return ResponseEntity.ok(lostPetService.search(
-                viewerId, species, status, from, to, latitude, longitude, radiusKm));
+                viewerId, species, status, from, to, latitude, longitude, radiusKm, page, size));
     }
 
     @GetMapping("/mine")
-    public ResponseEntity<List<LostPetDtos.LostPetReportResponse>> getMyReports(
-            Authentication authentication) {
-        return ResponseEntity.ok(lostPetService.getMyReports(requireUserId(authentication)));
+    public ResponseEntity<PageResponse<LostPetDtos.LostPetReportResponse>> getMyReports(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(lostPetService.getMyReports(requireUserId(authentication), page, size));
     }
 
     @GetMapping("/{reportId}")
@@ -66,10 +75,13 @@ public class LostPetController {
         return ResponseEntity.ok(lostPetService.getById(viewerId, reportId));
     }
 
+    /** Avistamientos de un aviso, paginados por fecha de avistamiento descendente. */
     @GetMapping("/{reportId}/sightings")
-    public ResponseEntity<List<LostPetDtos.LostPetSightingResponse>> getSightings(
-            @PathVariable UUID reportId) {
-        return ResponseEntity.ok(lostPetService.getSightings(reportId));
+    public ResponseEntity<PageResponse<LostPetDtos.LostPetSightingResponse>> getSightings(
+            @PathVariable UUID reportId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(lostPetService.getSightings(reportId, page, size));
     }
 
     @PostMapping

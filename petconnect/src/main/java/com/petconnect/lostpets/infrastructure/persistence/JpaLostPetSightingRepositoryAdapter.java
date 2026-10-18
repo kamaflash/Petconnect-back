@@ -2,9 +2,10 @@ package com.petconnect.lostpets.infrastructure.persistence;
 
 import com.petconnect.lostpets.domain.LostPetSighting;
 import com.petconnect.lostpets.domain.repositories.LostPetSightingRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,8 +24,8 @@ public class JpaLostPetSightingRepositoryAdapter implements LostPetSightingRepos
     }
 
     @Override
-    public List<LostPetSighting> findByReportIdOrderBySightedAtDesc(UUID reportId) {
-        return repository.findByReportIdOrderBySightedAtDesc(reportId);
+    public Page<LostPetSighting> findByReportId(UUID reportId, Pageable pageable) {
+        return repository.findByReportId(reportId, pageable);
     }
 
     @Override

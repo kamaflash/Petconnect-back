@@ -7,6 +7,7 @@ import com.petconnect.home.domain.MarketplacePromo;
 import com.petconnect.home.domain.VetService;
 import com.petconnect.home.domain.Achievement;
 import com.petconnect.home.domain.UserLevel;
+import com.petconnect.shared.presentation.dto.PageResponse;
 import com.petconnect.social.domain.Story;
 import com.petconnect.shared.infrastructure.security.CurrentUserService;
 import org.slf4j.Logger;
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -57,10 +59,13 @@ public class HomeController {
         return ResponseEntity.ok(homeService.getVetServices());
     }
 
+    /** Adopciones disponibles, paginadas por fecha de creación descendente. */
     @GetMapping("/adoptions")
-    public ResponseEntity<List<AdoptionResponse>> getNewAdoptions() {
-        log.debug("GET /api/v1/home/adoptions");
-        return ResponseEntity.ok(homeService.getNewAdoptions());
+    public ResponseEntity<PageResponse<AdoptionResponse>> getNewAdoptions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.debug("GET /api/v1/home/adoptions page={} size={}", page, size);
+        return ResponseEntity.ok(homeService.getNewAdoptions(page, size));
     }
 
     @GetMapping("/achievements")
