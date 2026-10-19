@@ -56,7 +56,7 @@ class LoginUseCaseTest {
 
         var savedProfile = new UserProfile(userId, "John", "Doe", "USER");
         when(userProfileRepository.findByAuthUserId(userId)).thenReturn(Optional.of(savedProfile));
-        when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("access-token");
+        when(jwtService.generateAccessToken(any(), any(), any(), anyBoolean())).thenReturn("access-token");
         when(jwtService.generateRefreshToken(any(), any())).thenReturn("refresh-token");
 
         var response = loginUseCase.execute(new LoginCommand(

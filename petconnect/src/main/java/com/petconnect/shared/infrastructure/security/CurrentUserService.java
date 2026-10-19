@@ -30,4 +30,17 @@ public class CurrentUserService {
         return getCurrentUserId()
                 .orElseThrow(() -> new IllegalStateException("Usuario autenticado no encontrado en el contexto"));
     }
+
+    /** Detalles del usuario autenticado, o vacío si no hay sesión. */
+    public Optional<CustomUserDetails> getCurrentUserDetails() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return Optional.empty();
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof CustomUserDetails userDetails) {
+            return Optional.of(userDetails);
+        }
+        return Optional.empty();
+    }
 }

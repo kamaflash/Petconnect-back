@@ -34,6 +34,7 @@ public class ProductController {
     @GetMapping("/products")
     public ResponseEntity<PageResponse<ProductResponse>> getAllProducts(
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String brand,
             @RequestParam(required = false) String term,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
@@ -41,7 +42,7 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(getAllProductsUseCase.execute(
-                category, term, minPrice, maxPrice, inStock, page, size));
+                category, brand, term, minPrice, maxPrice, inStock, page, size));
     }
 
     @GetMapping("/products/seller")

@@ -2,6 +2,9 @@ package com.petconnect.users.infrastructure.persistence;
 
 import com.petconnect.users.domain.UserProfile;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -35,6 +38,11 @@ public class JpaUserProfileRepositoryAdapter implements UserProfileRepository {
     @Override
     public List<UserProfile> findAll() {
         return springDataUserProfileRepository.findAll();
+    }
+
+    @Override
+    public Page<UserProfile> findAll(Specification<UserProfile> spec, Pageable pageable) {
+        return springDataUserProfileRepository.findAll(spec, pageable);
     }
 
     @Override

@@ -19,29 +19,38 @@ spring:
     password: ${DATASOURCE_PASSWORD:petconnect123}
     driver-class-name: org.postgresql.Driver
 
-  # JPA: con Flyway el esquema lo mandan las migraciones; Hibernate solo añade
-  # lo que falte (update). NO usar create-drop: al apagar borra las tablas de
-  # entidades pero conserva flyway_schema_history, y al rearrancar Flyway solo
-  # intenta la última migración sobre tablas que ya no existen
-  # ("relation user_profiles does not exist").
+  # JPA: con Flyway el esquema lo mandan las migraciones; Hibernate NO toca el
+  # schema (none) para no entrar en conflicto con Flyway. Solo valida que las
+  # entidades coincidan con el schema creado por Flyway.
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: false
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  # Flyway
+  # Flyway: el esquema y los datos los gestionan las migraciones V1…Vxx.
+  # migrate-on-start=false para que el DbResetInitializer controle cuándo migrar.
   flyway:
     enabled: true
-    # NO usar baseline-on-migrate en local con ddl-auto create-drop:
-    # al cerrar, Hibernate borra las tablas (incluido el historial de Flyway)
-    # y al arrancar Flyway marcaba todo como aplicado sin ejecutar nada.
+    migrate-on-start: true
     locations: classpath:db/migration
     validate-on-migrate: false
+
+  # app.db.reset-on-start: cuando true, el DbResetInitializer ejecuta
+  # flyway.clean() (borra flyway_schema_history y todos los objetos) seguido de
+  # flyway.migrate() (recrea el esquema y siembra datos en todas las tablas).
+  # DEFAULT false A PROPOSITO: clean() en cada arranque destruye los datos y,
+  # si el arranque se interrumpe, deja la BD a medias (p.ej. "relation
+  # auth_users does not exist"). Usar true SOLO para un reseteo deliberado
+  # (variable de entorno DB_RESET_ON_START=true en el arranque puntual).
+  # Arranques normales: false + spring.flyway.migrate-on-start=true (idempotente).
+  app:
+    db:
+      reset-on-start: ${DB_RESET_ON_START:false}
 
   # Redis
   data:

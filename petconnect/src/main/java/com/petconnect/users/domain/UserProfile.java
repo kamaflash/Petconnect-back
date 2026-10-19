@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.UUID;
 
 @Entity
@@ -59,6 +60,10 @@ public class UserProfile extends BaseEntity {
     @Column(length = 100)
     private String specialty; // Para vet y trainer
 
+    /** Catálogo de servicios que ofrece un vet (códigos separados por comas). */
+    @Column(length = 500)
+    private String services; // Para vet
+
     @Column(length = 50)
     private String licenseNumber; // Para vet
 
@@ -70,6 +75,14 @@ public class UserProfile extends BaseEntity {
 
     @Column(length = 255)
     private String website;
+
+    /**
+     * Marca de onboarding: el usuario ha elegido su tipo de cuenta y ha
+     * confirmado sus datos en el flujo de onboarding. Se activa al guardar el
+     * perfil con los campos obligatorios del tipo.
+     */
+    @Column(nullable = false)
+    private boolean profileCompleted;
 
     protected UserProfile() {
         super();
@@ -102,6 +115,99 @@ public class UserProfile extends BaseEntity {
         this.charityNumber = charityNumber;
         this.storeName = storeName;
         this.website = website;
+    }
+
+    /** Guarda los servicios del catálogo marcados por un vet (comma-separated). */
+    public void updateServices(String services) {
+        this.services = services;
+    }
+
+    /**
+     * ¿El perfil tiene toda la información obligatoria para su tipo?
+     *
+     * <p>
+     * Campos base obligatorios para cualquier tipo: nombre, apellidos y tipo de
+     * perfil. Además, cada tipo profesional exige sus datos propios:
+     * </p>
+     * <ul>
+     * <li>{@code vet}: nº de colegiado y al menos un servicio del catálogo.</li>
+     * <li>{@code shelter}: nº de registro (CIF/referencia autonómica).</li>
+     * <li>{@code trainer}: especialidad.</li>
+     * <li>{@code seller}: nombre de tienda.</li>
+     * <li>{@code user}: no exige datos adicionales.</li>
+     * </ul>
+     * <p>
+     * Los campos opcionales ({@code phone}, {@code bio}, {@code location},
+     * {@code website}, {@code dateOfBirth}) nunca son obligatorios.
+     * </p>
+     */
+    public boolean isProfileComplete() {
+        // El onboarding debe estar confirmado explícitamente: elegir el tipo de
+        // cuenta y guardar los datos es lo que marca el perfil como completo.
+        if (!profileCompleted) {
+            return false;
+        }
+        return hasRequiredFieldsForType();
+    }
+
+    /**
+     * Recalcula la marca de onboarding a partir de los datos actuales.
+     *
+     * <p>
+     * La marca solo se revoca cuando el usuario cambia de tipo y le faltan los
+     * campos obligatorios del nuevo tipo; si el tipo no ha cambiado, se
+     * conserva el estado previo (evita bloquear cuentas ya completadas por un
+     * campo que el formulario de edición no muestra).
+     * </p>
+     *
+     * @param previousType tipo de perfil antes de la actualización (null si no
+     *                     se conoce)
+     */
+    public void refreshProfileCompleted(String previousType) {
+        if (profileCompleted && sameType(previousType, this.profileType)) {
+            return;
+        }
+        this.profileCompleted = hasRequiredFieldsForType();
+    }
+
+    private static boolean sameType(String a, String b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        return a.trim().equalsIgnoreCase(b.trim());
+    }
+
+    /** Marca el onboarding como completado sin recalcular. */
+    public void markProfileCompleted() {
+        this.profileCompleted = true;
+    }
+
+    /** Revoca la marca de onboarding (p. ej. al cambiar a un tipo sin datos). */
+    public void deactivateProfileCompleted() {
+        this.profileCompleted = false;
+    }
+
+    public boolean isProfileCompleted() {
+        return profileCompleted;
+    }
+
+    /** ¿El tipo de perfil actual tiene todos sus campos obligatorios cubiertos? */
+    public boolean hasRequiredFieldsForType() {
+        if (isBlank(firstName) || isBlank(lastName) || isBlank(profileType)) {
+            return false;
+        }
+        String type = profileType.trim().toLowerCase(Locale.ROOT);
+        return switch (type) {
+            case "vet" -> !isBlank(licenseNumber) && !isBlank(services);
+            case "shelter" -> !isBlank(charityNumber);
+            case "trainer" -> !isBlank(specialty);
+            case "seller" -> !isBlank(storeName);
+            default -> true;
+        };
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     /** Los tipos "vet" y "shelter" requieren aprobación de un administrador. */
@@ -250,6 +356,10 @@ public class UserProfile extends BaseEntity {
 
     public String getSpecialty() {
         return specialty;
+    }
+
+    public String getServices() {
+        return services;
     }
 
     public String getLicenseNumber() {

@@ -16,6 +16,7 @@ public record UpdateProfileRequest(
                 Double longitude,
                 @Size(max = 20) String profileType,
                 @Size(max = 100) String specialty,
+                @Size(max = 500) String services,
                 @Size(max = 50) String licenseNumber,
                 @Size(max = 100) String charityNumber,
                 @Size(max = 100) String storeName,

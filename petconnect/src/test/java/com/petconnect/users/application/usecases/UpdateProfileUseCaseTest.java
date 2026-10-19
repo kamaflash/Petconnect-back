@@ -43,13 +43,13 @@ class UpdateProfileUseCaseTest {
     private UpdateProfileRequest request(String profileType) {
         return new UpdateProfileRequest(
                 "Ana", "García", null, null, null, null, null, null,
-                profileType, null, null, null, null, null);
+                profileType, null, null, null, null, null, null);
     }
 
     private UpdateProfileRequest request(String profileType, String licenseNumber, String charityNumber) {
         return new UpdateProfileRequest(
                 "Ana", "García", null, null, null, null, null, null,
-                profileType, null, licenseNumber, charityNumber, null, null);
+                profileType, null, null, licenseNumber, charityNumber, null, null);
     }
 
     @Test
@@ -109,5 +109,31 @@ class UpdateProfileUseCaseTest {
 
         assertEquals("trainer", profile.getProfileType());
         assertNull(profile.getPendingProfileType());
+    }
+
+    @Test
+    void vetServicesAreNormalizedAndKept() throws Exception {
+        when(userProfileRepository.findByAuthUserId(userId)).thenReturn(Optional.of(profile));
+        when(userProfileRepository.save(any(UserProfile.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var request = new UpdateProfileRequest(
+                "Ana", "García", null, null, null, null, null, null,
+                "vet", null, "Consultations, vaccinations,consultations ", "M-12345", null, null, null);
+        useCase.execute(userId, request, null, null);
+
+        assertEquals("consultations,vaccinations", profile.getServices());
+    }
+
+    @Test
+    void nonVetProfileClearsServices() throws Exception {
+        profile.updateServices("consultations");
+        when(userProfileRepository.findByAuthUserId(userId)).thenReturn(Optional.of(profile));
+        when(userProfileRepository.save(any(UserProfile.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        useCase.execute(userId, request("user"), null, null);
+
+        assertNull(profile.getServices());
     }
 }

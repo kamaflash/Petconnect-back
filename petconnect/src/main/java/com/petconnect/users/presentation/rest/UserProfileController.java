@@ -1,13 +1,18 @@
 package com.petconnect.users.presentation.rest;
 
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
+import com.petconnect.users.application.dto.OnboardingProfileRequest;
+import com.petconnect.users.application.dto.ProviderSearchResponse;
 import com.petconnect.users.application.dto.UserProfileResponse;
 import com.petconnect.users.application.dto.UpdateProfileRequest;
+import com.petconnect.users.application.usecases.CompleteOnboardingUseCase;
 import com.petconnect.users.application.usecases.GetUserProfileUseCase;
+import com.petconnect.users.application.usecases.SearchProvidersUseCase;
 import com.petconnect.users.application.usecases.UpdateProfileUseCase;
 import com.petconnect.users.domain.UserProfile;
 import com.petconnect.users.domain.exceptions.UserNotFoundException;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,14 +30,20 @@ public class UserProfileController {
 
     private final UpdateProfileUseCase updateProfileUseCase;
     private final GetUserProfileUseCase getUserProfileUseCase;
+    private final SearchProvidersUseCase searchProvidersUseCase;
+    private final CompleteOnboardingUseCase completeOnboardingUseCase;
     private final UserProfileRepository userProfileRepository;
 
     public UserProfileController(
             UpdateProfileUseCase updateProfileUseCase,
             GetUserProfileUseCase getUserProfileUseCase,
+            SearchProvidersUseCase searchProvidersUseCase,
+            CompleteOnboardingUseCase completeOnboardingUseCase,
             UserProfileRepository userProfileRepository) {
         this.updateProfileUseCase = updateProfileUseCase;
         this.getUserProfileUseCase = getUserProfileUseCase;
+        this.searchProvidersUseCase = searchProvidersUseCase;
+        this.completeOnboardingUseCase = completeOnboardingUseCase;
         this.userProfileRepository = userProfileRepository;
     }
 
@@ -61,15 +72,43 @@ public class UserProfileController {
         return ResponseEntity.ok(userProfileRepository.findAll());
     }
 
+    /**
+     * Proveedores para "Servicios cercanos": filtra por tipo de perfil y, para
+     * vets, por los códigos de servicios del catálogo (multi-selección, AND).
+     */
+    @GetMapping("/providers")
+    public ResponseEntity<ProviderSearchResponse> searchProviders(
+            @RequestParam(value = "profileType", required = false) String profileType,
+            @RequestParam(value = "services", required = false) List<String> services,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(searchProvidersUseCase.execute(profileType, services, page, size));
+    }
+
     @PutMapping("/profile")
-    public ResponseEntity<UserProfile> updateProfile(
+    public ResponseEntity<UserProfileResponse> updateProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestPart(value = "data", required = false) UpdateProfileRequest data,
             @RequestPart(value = "avatar", required = false) MultipartFile avatar,
             @RequestPart(value = "coverImage", required = false) MultipartFile coverImage) throws IOException {
 
         var profile = updateProfileUseCase.execute(userDetails.getUserId(), data, avatar, coverImage);
-        return ResponseEntity.ok(profile);
+        return ResponseEntity.ok(toResponse(profile));
+    }
+
+    // ===== Onboarding post-registro =====
+
+    /**
+     * Completa el onboarding: el usuario elige su tipo de cuenta y confirma sus
+     * datos. Es la única vía que marca el perfil como completo y desbloquea el
+     * acceso a las rutas protegidas.
+     */
+    @PutMapping("/onboarding")
+    public ResponseEntity<UserProfileResponse> completeOnboarding(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody OnboardingProfileRequest request) {
+        var response = completeOnboardingUseCase.execute(userDetails.getUserId(), request);
+        return ResponseEntity.ok(response);
     }
 
     // ===== Solicitudes de cambio de tipo de perfil (vet/shelter) =====
@@ -160,6 +199,8 @@ public class UserProfileController {
                 profile.getCharityNumber(),
                 profile.getStoreName(),
                 profile.getWebsite(),
-                profile.getPendingProfileType());
+                profile.getPendingProfileType(),
+                profile.getServices(),
+                profile.isProfileComplete());
     }
 }

@@ -65,7 +65,7 @@ class RegisterUseCaseTest {
 
         var savedProfile = new UserProfile(savedUserId, "John", "Doe", "USER");
         when(userProfileRepository.save(any(UserProfile.class))).thenReturn(savedProfile);
-        when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("access-token");
+        when(jwtService.generateAccessToken(any(), any(), any(), anyBoolean())).thenReturn("access-token");
         when(jwtService.generateRefreshToken(any(), any())).thenReturn("refresh-token");
 
         var response = registerUseCase.execute(command);

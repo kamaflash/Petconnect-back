@@ -43,6 +43,8 @@ public class GetUserProfileUseCase {
                 profile.getCharityNumber(),
                 profile.getStoreName(),
                 profile.getWebsite(),
-                profile.getPendingProfileType());
+                profile.getPendingProfileType(),
+                profile.getServices(),
+                profile.isProfileComplete());
     }
 }

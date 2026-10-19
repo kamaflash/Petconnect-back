@@ -60,37 +60,42 @@ public class LoginUseCase {
             throw new AuthException("Invalid email or password");
         }
 
+        var userProfile = userProfileRepository.findByAuthUserId(authUser.getId())
+                .orElse(null);
+        boolean profileComplete = userProfile != null && userProfile.isProfileComplete();
+
         var accessToken = jwtService.generateAccessToken(authUser.getId(), authUser.getEmail(),
-                authUser.getRole().name());
+                authUser.getRole().name(), profileComplete);
         var refreshToken = jwtService.generateRefreshToken(authUser.getId(), authUser.getEmail());
 
         authUser.updateRefreshToken(refreshToken, LocalDateTime.now().plusDays(30));
         authUserRepository.save(authUser);
 
-        var userProfile = userProfileRepository.findByAuthUserId(authUser.getId())
-                .map(profile -> new UserProfileResponse(
-                        profile.getId(),
-                        profile.getAuthUserId(),
-                        profile.getFirstName(),
-                        profile.getLastName(),
-                        profile.getPhone(),
-                        profile.getBio(),
-                        profile.getAvatarUrl(),
-                        profile.getCoverImageUrl(),
-                        profile.getDateOfBirth(),
-                        profile.getLocation(),
-                        profile.getLatitude(),
-                        profile.getLongitude(),
-                        profile.isProfilePublic(),
-                        profile.isNotificationsEnabled(),
-                        profile.getProfileType(),
-                        profile.getSpecialty(),
-                        profile.getLicenseNumber(),
-                        profile.getCharityNumber(),
-                        profile.getStoreName(),
-                        profile.getWebsite(),
-                        profile.getPendingProfileType()))
-                .orElse(null);
+        var profileResponse = userProfile != null ? new UserProfileResponse(
+                        userProfile.getId(),
+                        userProfile.getAuthUserId(),
+                        userProfile.getFirstName(),
+                        userProfile.getLastName(),
+                        userProfile.getPhone(),
+                        userProfile.getBio(),
+                        userProfile.getAvatarUrl(),
+                        userProfile.getCoverImageUrl(),
+                        userProfile.getDateOfBirth(),
+                        userProfile.getLocation(),
+                        userProfile.getLatitude(),
+                        userProfile.getLongitude(),
+                        userProfile.isProfilePublic(),
+                        userProfile.isNotificationsEnabled(),
+                        userProfile.getProfileType(),
+                        userProfile.getSpecialty(),
+                        userProfile.getLicenseNumber(),
+                        userProfile.getCharityNumber(),
+                        userProfile.getStoreName(),
+                        userProfile.getWebsite(),
+                        userProfile.getPendingProfileType(),
+                        userProfile.getServices(),
+                        profileComplete)
+                : null;
 
         log.info("Login successful: userId={}, email={}", authUser.getId(), authUser.getEmail());
 
@@ -101,6 +106,8 @@ public class LoginUseCase {
                 accessToken,
                 refreshToken,
                 accessTokenExpiration / 1000,
-                userProfile);
+                profileResponse,
+                false,
+                profileComplete);
     }
 }

@@ -24,5 +24,8 @@ public record UserProfileResponse(
                 String charityNumber,
                 String storeName,
                 String website,
-                String pendingProfileType) {
+                String pendingProfileType,
+                String services,
+                /** True si el perfil tiene toda la información obligatoria de su tipo. */
+                boolean profileComplete) {
 }

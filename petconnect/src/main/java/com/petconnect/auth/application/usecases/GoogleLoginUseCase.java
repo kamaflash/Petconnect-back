@@ -62,24 +62,25 @@ public class GoogleLoginUseCase {
         String email = googleUser.email();
         log.info("Google login attempt for email: {}", email);
 
-        AuthUser authUser = authUserRepository.findByEmail(email)
-                .orElseGet(() -> registerGoogleUser(googleUser));
+        var existingUser = authUserRepository.findByEmail(email);
+        boolean newUser = existingUser.isEmpty();
+        AuthUser authUser = existingUser.orElseGet(() -> registerGoogleUser(googleUser));
 
         if (!authUser.isEnabled()) {
             log.warn("Google login failed - account disabled: {}", email);
             throw new AuthException("Account is disabled");
         }
 
+        var profile = userProfileRepository.findByAuthUserId(authUser.getId()).orElse(null);
+        var profileResponse = profile != null ? toProfileResponse(profile) : null;
+        boolean profileComplete = profile != null && profile.isProfileComplete();
+
         var accessToken = jwtService.generateAccessToken(authUser.getId(), authUser.getEmail(),
-                authUser.getRole().name());
+                authUser.getRole().name(), profileComplete);
         var refreshToken = jwtService.generateRefreshToken(authUser.getId(), authUser.getEmail());
 
         authUser.updateRefreshToken(refreshToken, LocalDateTime.now().plusDays(30));
         authUserRepository.save(authUser);
-
-        var profileResponse = userProfileRepository.findByAuthUserId(authUser.getId())
-                .map(this::toProfileResponse)
-                .orElse(null);
 
         log.info("Google login successful: userId={}, email={}", authUser.getId(), email);
 
@@ -90,7 +91,9 @@ public class GoogleLoginUseCase {
                 accessToken,
                 refreshToken,
                 accessTokenExpiration / 1000,
-                profileResponse);
+                profileResponse,
+                newUser,
+                profileComplete);
     }
 
     /** Crea la cuenta y el perfil si es la primera vez que entra con Google. */
@@ -134,6 +137,8 @@ public class GoogleLoginUseCase {
                 profile.getCharityNumber(),
                 profile.getStoreName(),
                 profile.getWebsite(),
-                profile.getPendingProfileType());
+                profile.getPendingProfileType(),
+                profile.getServices(),
+                profile.isProfileComplete());
     }
 }

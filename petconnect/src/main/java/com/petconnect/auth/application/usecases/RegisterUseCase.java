@@ -71,8 +71,10 @@ public class RegisterUseCase {
                 userProfile.requestProfileType(command.profileType());
                 var savedProfile = userProfileRepository.save(userProfile);
 
+                boolean profileComplete = savedProfile.isProfileComplete();
+
                 var accessToken = jwtService.generateAccessToken(savedUser.getId(), savedUser.getEmail(),
-                                savedUser.getRole().name());
+                                savedUser.getRole().name(), profileComplete);
                 var refreshToken = jwtService.generateRefreshToken(savedUser.getId(), savedUser.getEmail());
 
                 savedUser.updateRefreshToken(refreshToken, LocalDateTime.now().plusDays(30));
@@ -105,7 +107,9 @@ public class RegisterUseCase {
                                 savedProfile.getCharityNumber(),
                                 savedProfile.getStoreName(),
                                 savedProfile.getWebsite(),
-                                savedProfile.getPendingProfileType());
+                                savedProfile.getPendingProfileType(),
+                                savedProfile.getServices(),
+                                profileComplete);
 
                 return new AuthResponse(
                                 savedUser.getId(),
@@ -114,6 +118,8 @@ public class RegisterUseCase {
                                 accessToken,
                                 refreshToken,
                                 accessTokenExpiration / 1000,
-                                profileResponse);
+                                profileResponse,
+                                true,
+                                profileComplete);
         }
 }

@@ -19,10 +19,10 @@ public interface ProductRepository {
     Page<Product> findByCategoryAndActiveTrue(String category, Pageable pageable);
 
     /**
-     * Búsqueda con filtros combinados (categoría, texto, precio, stock) en BD,
+     * Búsqueda con filtros combinados (categoría, marca, texto, precio, stock) en BD,
      * ordenada por fecha de creación descendente (vía {@code Pageable}).
      */
-    Page<Product> searchActive(String category, String term,
+    Page<Product> searchActive(String category, String brand, String term,
             BigDecimal minPrice, BigDecimal maxPrice, Boolean inStock,
             Pageable pageable);
 

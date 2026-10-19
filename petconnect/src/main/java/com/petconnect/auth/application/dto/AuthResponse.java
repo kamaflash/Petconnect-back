@@ -11,5 +11,9 @@ public record AuthResponse(
                 String accessToken,
                 String refreshToken,
                 long expiresIn,
-                UserProfileResponse profile) {
+                UserProfileResponse profile,
+                /** True si la cuenta acaba de crearse (registro o primer acceso con Google). */
+                boolean newUser,
+                /** True si el perfil tiene toda la información obligatoria de su tipo. */
+                boolean profileComplete) {
 }

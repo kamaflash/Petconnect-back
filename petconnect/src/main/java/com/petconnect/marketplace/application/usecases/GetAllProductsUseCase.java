@@ -29,15 +29,15 @@ public class GetAllProductsUseCase {
     /**
      * Catálogo paginado (10×10 por defecto), siempre ordenado por fecha de
      * creación descendente (lo más actual primero). Todos los filtros se
-     * aplican en base de datos.
+     * aplican en base de datos (categoría, marca, texto, precio y stock).
      */
     @Transactional(readOnly = true)
-    public PageResponse<ProductResponse> execute(String category, String term,
-            BigDecimal minPrice, BigDecimal maxPrice, Boolean inStock,
+    public PageResponse<ProductResponse> execute(String category, String brand,
+            String term, BigDecimal minPrice, BigDecimal maxPrice, Boolean inStock,
             int page, int size) {
         Pageable pageable = newestFirst(page, size);
         Page<Product> result = productRepository.searchActive(
-                blankToNull(category), blankToNull(term),
+                blankToNull(category), blankToNull(brand), blankToNull(term),
                 minPrice, maxPrice, inStock, pageable);
         return PageResponse.from(result, this::toResponse);
     }

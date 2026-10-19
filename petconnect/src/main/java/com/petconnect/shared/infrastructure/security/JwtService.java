@@ -33,11 +33,41 @@ public class JwtService {
     }
 
     public String generateAccessToken(UUID userId, String email, String role) {
-        return generateToken(userId, email, role, accessTokenSecret, accessTokenExpiration);
+        return generateAccessToken(userId, email, role, false);
+    }
+
+    /**
+     * Genera el access token incluyendo el claim {@code profileComplete}, que
+     * indica si el perfil tenía toda la información obligatoria en el momento
+     * de emitir el token.
+     *
+     * <p>
+     * Nota: el claim puede quedar desactualizado si el usuario completa el
+     * perfil después; por eso las decisiones de autorización no deben
+     * solo de él.
+     * </p>
+     */
+    public String generateAccessToken(UUID userId, String email, String role, boolean profileComplete) {
+        var claims = new java.util.HashMap<String, Object>();
+        claims.put("profileComplete", profileComplete);
+        return generateToken(userId, email, role, claims, accessTokenSecret, accessTokenExpiration);
     }
 
     public String generateRefreshToken(UUID userId, String email) {
-        return generateToken(userId, email, null, refreshTokenSecret, refreshTokenExpiration);
+        // El refresh token no lleva el claim `profileComplete`: se recalcula en
+        // cada refresh y solo agranda el token almacenado en BD.
+        return generateToken(userId, email, null, Map.of(), refreshTokenSecret, refreshTokenExpiration);
+    }
+
+    /** Claim {@code profileComplete} del access token (false si no está presente). */
+    public boolean isProfileCompleteClaim(String token) {
+        try {
+            var claims = extractAllClaims(token, accessTokenSecret);
+            var value = claims.get("profileComplete");
+            return Boolean.TRUE.equals(value);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public String extractEmailFromAccessToken(String token) {
@@ -64,12 +94,14 @@ public class JwtService {
         return refreshTokenExpiration;
     }
 
-    private String generateToken(UUID userId, String email, String role, SecretKey secret, long expiration) {
+    private String generateToken(UUID userId, String email, String role, Map<String, Object> extraClaims,
+            SecretKey secret, long expiration) {
         var claims = new java.util.HashMap<String, Object>();
         claims.put("userId", userId.toString());
         if (role != null) {
             claims.put("role", role);
         }
+        claims.putAll(extraClaims);
 
         return Jwts.builder()
                 .claims(claims)

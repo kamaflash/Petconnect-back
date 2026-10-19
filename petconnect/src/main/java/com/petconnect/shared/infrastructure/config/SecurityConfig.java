@@ -1,6 +1,7 @@
 package com.petconnect.shared.infrastructure.config;
 
 import com.petconnect.shared.infrastructure.security.JwtAuthenticationFilter;
+import com.petconnect.shared.infrastructure.security.ProfileCompletionFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -29,10 +30,15 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final ProfileCompletionFilter profileCompletionFilter;
     private final UserDetailsService userDetailsService;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter, UserDetailsService userDetailsService) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthFilter,
+            ProfileCompletionFilter profileCompletionFilter,
+            UserDetailsService userDetailsService) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.profileCompletionFilter = profileCompletionFilter;
         this.userDetailsService = userDetailsService;
     }
 
@@ -62,7 +68,10 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // Bloquea las escrituras de quien aún no ha completado el onboarding.
+                // Va después del filtro JWT para poder conocer al usuario.
+                .addFilterAfter(profileCompletionFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }
