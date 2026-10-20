@@ -2,6 +2,8 @@ package com.petconnect.social.presentation.rest;
 
 import com.petconnect.social.domain.*;
 import com.petconnect.social.infrastructure.persistence.*;
+import com.petconnect.users.domain.UserProfile;
+import com.petconnect.users.domain.repositories.UserProfileRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import com.petconnect.gamification.application.events.XpEvent;
@@ -12,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -25,6 +28,7 @@ public class SocialController {
     private final SpringDataFollowRepository followRepository;
     private final SpringDataNotificationRepository notificationRepository;
     private final SpringDataTrendingTopicRepository trendingTopicRepository;
+    private final UserProfileRepository userProfileRepository;
 
     @Autowired
     private ApplicationEventPublisher applicationEventPublisher;
@@ -34,12 +38,14 @@ public class SocialController {
             SpringDataGroupRepository groupRepository,
             SpringDataFollowRepository followRepository,
             SpringDataNotificationRepository notificationRepository,
-            SpringDataTrendingTopicRepository trendingTopicRepository) {
+            SpringDataTrendingTopicRepository trendingTopicRepository,
+            UserProfileRepository userProfileRepository) {
         this.eventRepository = eventRepository;
         this.groupRepository = groupRepository;
         this.followRepository = followRepository;
         this.notificationRepository = notificationRepository;
         this.trendingTopicRepository = trendingTopicRepository;
+        this.userProfileRepository = userProfileRepository;
     }
 
     // ========== EVENTS ==========
@@ -115,35 +121,84 @@ public class SocialController {
     }
 
     // ========== FOLLOWS ==========
+    // El frontend trabaja con authUserIds (el usuario autenticado y los ids de
+    // las rutas /profile/:id), pero la tabla follows referencia a
+    // user_profiles(id). Aquí se traduce en ambos sentidos.
 
     @GetMapping("/follows/followers/{userId}")
     public ResponseEntity<List<Follow>> getFollowers(@PathVariable UUID userId) {
         log.debug("GET /api/v1/social/follows/followers/{}", userId);
-        return ResponseEntity.ok(followRepository.findByFollowingId(userId));
+        return resolveProfileId(userId)
+                .map(followRepository::findByFollowingId)
+                .map(this::toAuthIdFollows)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.ok(List.of()));
     }
 
     @GetMapping("/follows/following/{userId}")
     public ResponseEntity<List<Follow>> getFollowing(@PathVariable UUID userId) {
         log.debug("GET /api/v1/social/follows/following/{}", userId);
-        return ResponseEntity.ok(followRepository.findByFollowerId(userId));
+        return resolveProfileId(userId)
+                .map(followRepository::findByFollowerId)
+                .map(this::toAuthIdFollows)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.ok(List.of()));
     }
 
     @PostMapping("/follows")
     public ResponseEntity<Follow> followUser(@RequestBody Follow follow) {
         log.debug("POST /api/v1/social/follows");
-        if (followRepository.existsByFollowerIdAndFollowingId(follow.getFollowerId(), follow.getFollowingId())) {
+        var followerProfileId = resolveProfileId(follow.getFollowerId());
+        var followingProfileId = resolveProfileId(follow.getFollowingId());
+        if (followerProfileId.isEmpty() || followingProfileId.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-        Follow saved = followRepository.save(follow);
-        publishGamification(ActionType.FOLLOW, follow.getFollowerId());
-        return ResponseEntity.ok(saved);
+        if (followRepository.existsByFollowerIdAndFollowingId(followerProfileId.get(), followingProfileId.get())) {
+            return ResponseEntity.badRequest().build();
+        }
+        followRepository.save(new Follow(followerProfileId.get(), followingProfileId.get()));
+        // El XP usa el authUserId (contrato de XpEvent), no el id de perfil.
+        publishGamification(ActionType.FOLLOW, authUserIdByProfileId(followerProfileId.get()));
+        // Se responde con los authUserIds que envió el cliente.
+        return ResponseEntity.ok(new Follow(follow.getFollowerId(), follow.getFollowingId()));
     }
 
     @DeleteMapping("/follows/{followerId}/{followingId}")
     public ResponseEntity<Void> unfollowUser(@PathVariable UUID followerId, @PathVariable UUID followingId) {
         log.debug("DELETE /api/v1/social/follows/{}/{}", followerId, followingId);
-        followRepository.deleteByFollowerIdAndFollowingId(followerId, followingId);
+        var followerProfileId = resolveProfileId(followerId);
+        var followingProfileId = resolveProfileId(followingId);
+        if (followerProfileId.isPresent() && followingProfileId.isPresent()) {
+            followRepository.deleteByFollowerIdAndFollowingId(followerProfileId.get(), followingProfileId.get());
+        }
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Resuelve el id de perfil (FK de follows) a partir de un id recibido del
+     * cliente. El frontend mezcla authUserIds e ids de perfil en las rutas
+     * /profile/:id según el origen del enlace, así que se aceptan ambos.
+     */
+    private Optional<UUID> resolveProfileId(UUID id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        return userProfileRepository.findByAuthUserId(id)
+                .or(() -> userProfileRepository.findById(id))
+                .map(UserProfile::getId);
+    }
+
+    /** Devuelve las filas de follows con los ids traducidos a authUserIds. */
+    private List<Follow> toAuthIdFollows(List<Follow> follows) {
+        return follows.stream()
+                .map(f -> new Follow(authUserIdByProfileId(f.getFollowerId()), authUserIdByProfileId(f.getFollowingId())))
+                .toList();
+    }
+
+    private UUID authUserIdByProfileId(UUID profileId) {
+        return userProfileRepository.findById(profileId)
+                .map(UserProfile::getAuthUserId)
+                .orElse(profileId);
     }
 
     // ========== NOTIFICATIONS ==========

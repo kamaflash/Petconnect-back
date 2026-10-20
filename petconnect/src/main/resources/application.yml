@@ -91,3 +91,7 @@ cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:dxjcjee8f}
   api-key: ${CLOUDINARY_API_KEY:833829157339787}
   api-secret: ${CLOUDINARY_API_SECRET:zVFo4c4e0mTfVhhwCvf84OHrGRc}
+
+# Nominatim (geocodificación OpenStreetMap)
+nominatim:
+  base-url: ${NOMINATIM_BASE_URL:https://nominatim.openstreetmap.org}
