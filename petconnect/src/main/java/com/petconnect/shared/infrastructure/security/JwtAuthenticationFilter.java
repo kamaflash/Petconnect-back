@@ -37,20 +37,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain) throws ServletException, IOException {
         var requestURI = request.getRequestURI();
 
-        // Skip JWT validation for auth endpoints
-        if (requestURI.startsWith("/api/v1/auth/")) {
+        // Solo se omiten los endpoints de auth que no requieren sesion
+        // (login, registro, google y refresh). `/session` y `/logout` SI
+        // necesitan la cookie `PC_AT` para resolver el usuario autenticado.
+        if (isSessionFreeAuthEndpoint(requestURI)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         var authHeader = request.getHeader("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
+        String token = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+        } else if (request.getCookies() != null) {
+            // Autenticación por cookie HttpOnly (el frontend ya no envía
+            // `Authorization`). Se acepta la cabecera como fallback durante
+            // la transición.
+            for (var cookie : request.getCookies()) {
+                if ("PC_AT".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
         }
 
-        var token = authHeader.substring(7);
         if (token == null || token.trim().isEmpty()) {
             filterChain.doFilter(request, response);
             return;
@@ -89,6 +99,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Endpoints de autenticacion que no dependen de una sesion previa: emitir
+     * tokens (login, register, google) o rotarlos (refresh). El resto
+     * (`/session`, `/logout`) requiere la cookie `PC_AT` valida.
+     */
+    private static boolean isSessionFreeAuthEndpoint(String requestURI) {
+        return requestURI.startsWith("/api/v1/auth/login")
+                || requestURI.startsWith("/api/v1/auth/register")
+                || requestURI.startsWith("/api/v1/auth/google")
+                || requestURI.startsWith("/api/v1/auth/refresh");
     }
 
     private void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {

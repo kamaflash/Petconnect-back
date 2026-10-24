@@ -67,6 +67,25 @@ jwt:
     secret: ${JWT_REFRESH_SECRET:dGhpcyBpcyBhIHZlcnkgc2VjdXJlIHJlZnJlc2ggdG9rZW4gc2VjcmV0IGtleSBmb3IgcGV0Y29ubmVjdA==}
     expiration: ${JWT_REFRESH_EXPIRATION:2592000000}
 
+# Sesión por cookies + CORS (ver docs/cookies-auth.md).
+# - Desarrollo (mismo origen vía proxy Angular): valores por defecto.
+# - Producción (front https://petconnect.com, API https://api.petconnect.com):
+#     FRONTEND_ORIGINS=https://petconnect.com
+#     COOKIE_SAME_SITE=None
+#     COOKIE_SECURE=true
+#     COOKIE_DOMAIN=.petconnect.com   (opcional; sin él la cookie es host-only
+#                                      de la API, lo cual también funciona)
+app:
+  cors:
+    allowed-origins: ${FRONTEND_ORIGINS:http://localhost:4200}
+  auth:
+    cookie:
+      same-site: ${COOKIE_SAME_SITE:Lax}
+      secure: ${COOKIE_SECURE:false}
+      domain: ${COOKIE_DOMAIN:}
+      access-path: /
+      refresh-path: /api/v1/auth
+
 # Server
 server:
   port: ${SERVER_PORT:8080}

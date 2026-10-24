@@ -1,7 +1,6 @@
 package com.petconnect.auth.application.usecases;
 
 import com.petconnect.auth.application.dto.AuthResponse;
-import com.petconnect.auth.application.dto.RefreshTokenRequest;
 import com.petconnect.auth.domain.exceptions.AuthException;
 import com.petconnect.auth.domain.repositories.AuthUserRepository;
 import com.petconnect.shared.infrastructure.security.JwtService;
@@ -32,17 +31,36 @@ public class RefreshTokenUseCase {
         this.accessTokenExpiration = accessTokenExpiration;
     }
 
+    @Transactional(readOnly = true)
+    public AuthResponse sessionFor(java.util.UUID userId) {
+        var authUser = authUserRepository.findById(userId)
+                .orElseThrow(() -> new AuthException("User not found"));
+        var userProfile = userProfileRepository.findByAuthUserId(authUser.getId())
+                .orElse(null);
+        boolean profileComplete = userProfile != null && userProfile.isProfileComplete();
+        return new AuthResponse(
+                authUser.getId(),
+                authUser.getEmail(),
+                authUser.getRole().name(),
+                null,
+                null,
+                accessTokenExpiration / 1000,
+                userProfile != null ? toProfileResponse(userProfile, profileComplete) : null,
+                false,
+                profileComplete);
+    }
+
     @Transactional
-    public AuthResponse execute(RefreshTokenRequest request) {
-        if (!jwtService.isRefreshTokenValid(request.refreshToken())) {
+    public AuthResponse execute(String refreshToken) {
+        if (!jwtService.isRefreshTokenValid(refreshToken)) {
             throw new AuthException("Invalid or expired refresh token");
         }
 
-        var email = jwtService.extractEmailFromRefreshToken(request.refreshToken());
+        var email = jwtService.extractEmailFromRefreshToken(refreshToken);
         var authUser = authUserRepository.findByEmail(email)
                 .orElseThrow(() -> new AuthException("User not found"));
 
-        if (authUser.getRefreshToken() == null || !authUser.getRefreshToken().equals(request.refreshToken())) {
+        if (authUser.getRefreshToken() == null || !authUser.getRefreshToken().equals(refreshToken)) {
             throw new AuthException("Invalid refresh token");
         }
 
@@ -62,7 +80,25 @@ public class RefreshTokenUseCase {
         authUser.updateRefreshToken(newRefreshToken, LocalDateTime.now().plusDays(30));
         authUserRepository.save(authUser);
 
-        var profileResponse = userProfile != null ? new UserProfileResponse(
+        var profileResponse = userProfile != null
+                ? toProfileResponse(userProfile, profileComplete)
+                : null;
+
+        return new AuthResponse(
+                authUser.getId(),
+                authUser.getEmail(),
+                authUser.getRole().name(),
+                newAccessToken,
+                newRefreshToken,
+                accessTokenExpiration / 1000,
+                profileResponse,
+                false,
+                profileComplete);
+    }
+
+    private static UserProfileResponse toProfileResponse(
+            com.petconnect.users.domain.UserProfile userProfile, boolean profileComplete) {
+        return new UserProfileResponse(
                         userProfile.getId(),
                         userProfile.getAuthUserId(),
                         userProfile.getFirstName(),
@@ -85,18 +121,6 @@ public class RefreshTokenUseCase {
                         userProfile.getWebsite(),
                         userProfile.getPendingProfileType(),
                         userProfile.getServices(),
-                        profileComplete)
-                : null;
-
-        return new AuthResponse(
-                authUser.getId(),
-                authUser.getEmail(),
-                authUser.getRole().name(),
-                newAccessToken,
-                newRefreshToken,
-                accessTokenExpiration / 1000,
-                profileResponse,
-                false,
-                profileComplete);
+                        profileComplete);
     }
 }
