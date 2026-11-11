@@ -49,4 +49,14 @@ public class LogoutUseCase {
 
         log.info("User logged out successfully: userId={}", userId);
     }
+
+    @Transactional
+    public void executeByRefreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+
+        authUserRepository.findByRefreshToken(refreshToken)
+                .ifPresent(authUser -> execute(authUser.getId(), null));
+    }
 }

@@ -20,6 +20,8 @@ public interface PostRepository {
     /** Devuelve una pÃƒÆ’Ã‚Â¡gina de posts activos ordenada segÃƒÆ’Ã‚Âºn el {@link Pageable} indicado. */
     Page<Post> findActivePaginated(Pageable pageable);
 
+    Page<Post> findActivePaginatedExcludingAuthors(List<UUID> excludedAuthorIds, Pageable pageable);
+
     List<Post> findByAuthorId(UUID authorId);
 
     List<Post> findByAuthorIdIn(List<UUID> authorIds);
@@ -30,7 +32,29 @@ public interface PostRepository {
     /** Devuelve una pÃƒÆ’Ã‚Â¡gina de posts activos de los autores indicados. */
     Page<Post> findActiveByIntent(PostIntent intent, Pageable pageable);
 
+    Page<Post> findActiveByIntentExcludingAuthors(
+            PostIntent intent, List<UUID> excludedAuthorIds, Pageable pageable);
+
     Page<Post> findActiveByAuthorIdInAndIntent(List<UUID> authorIds, PostIntent intent, Pageable pageable);
+
+    Page<Post> findActiveByAuthorIdInAndIntentExcludingAuthors(
+            List<UUID> authorIds, PostIntent intent, List<UUID> excludedAuthorIds, Pageable pageable);
+
+    Page<Post> findActiveByAuthorIdInExcludingAuthors(
+            List<UUID> authorIds, List<UUID> excludedAuthorIds, Pageable pageable);
+
+    Page<Post> findVisibleActive(
+            PostIntent intent,
+            UUID viewerProfileId,
+            List<UUID> excludedAuthorProfileIds,
+            boolean excludeBlockedAuthors,
+            List<UUID> authorProfileIds,
+            boolean filterAuthors,
+            Pageable pageable);
+
+    List<Post> findActiveByAuthorId(UUID authorId);
+
+    List<Post> findActiveByPetId(UUID petId);
 
     List<Post> findByPetId(UUID petId);
 
@@ -40,5 +64,3 @@ public interface PostRepository {
 
     void delete(Post post);
 }
-
-

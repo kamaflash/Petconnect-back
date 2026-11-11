@@ -12,6 +12,8 @@ public interface AuthUserRepository {
 
     Optional<AuthUser> findByRefreshToken(String refreshToken);
 
+    Optional<AuthUser> findByEmailChangeTokenHash(String tokenHash);
+
     boolean existsByEmail(String email);
 
     AuthUser save(AuthUser authUser);

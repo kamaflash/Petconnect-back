@@ -1,4 +1,5 @@
 -- Posts and Stories tables for the social feed
+-- Sample post and story inserts below are disabled for clean local databases.
 
 -- ============================================================
 -- POSTS
@@ -39,6 +40,7 @@ CREATE INDEX idx_stories_expires_at ON stories(expires_at);
 -- ============================================================
 -- SEED POSTS
 -- ============================================================
+/* Local database: sample posts are intentionally disabled.
 INSERT INTO posts (id, version, created_at, updated_at, author_id, image_url, caption, likes_count, comments_count, active)
 VALUES
     -- Post de Juan Pérez (b0000000-...-002)
@@ -94,10 +96,12 @@ VALUES
      'https://images.unsplash.com/photo-1552053831-71594a27632d?w=600&h=600&fit=crop',
      'Ruta de senderismo con Nieve por los Pirineos. Ella es la mejor compañera de aventuras. 🏔️🐕 #Husky #Senderismo #Montaña',
      1567, 92, TRUE);
+*/
 
 -- ============================================================
 -- SEED STORIES
 -- ============================================================
+/* Local database: sample stories are intentionally disabled.
 INSERT INTO stories (id, version, created_at, updated_at, user_id, image_url, seen, expires_at)
 VALUES
     ('e0000000-0000-0000-0000-000000000001', 0, '2024-07-10 08:00:00', '2024-07-10 08:00:00',
@@ -112,3 +116,4 @@ VALUES
      'b0000000-0000-0000-0000-000000000006', NULL, FALSE, '2024-07-11 12:00:00'),
     ('e0000000-0000-0000-0000-000000000006', 0, '2024-07-10 13:00:00', '2024-07-10 13:00:00',
      'b0000000-0000-0000-0000-000000000010', NULL, TRUE, '2024-07-11 13:00:00');
+*/

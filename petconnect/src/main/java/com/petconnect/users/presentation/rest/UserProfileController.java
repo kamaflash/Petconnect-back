@@ -1,20 +1,29 @@
 package com.petconnect.users.presentation.rest;
 
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
+import com.petconnect.messages.infrastructure.websocket.WebSocketPresenceListener;
 import com.petconnect.users.application.dto.OnboardingProfileRequest;
 import com.petconnect.users.application.dto.ProviderSearchResponse;
 import com.petconnect.users.application.dto.UserProfileResponse;
+import com.petconnect.users.application.dto.UserPreferencesResponse;
 import com.petconnect.users.application.dto.UpdateProfileRequest;
+import com.petconnect.users.application.dto.UpdateProfilePreferencesRequest;
+import com.petconnect.users.application.BlockedUserService;
+import com.petconnect.social.application.PostVisibilityService;
 import com.petconnect.users.application.usecases.CompleteOnboardingUseCase;
 import com.petconnect.users.application.usecases.GetUserProfileUseCase;
+import com.petconnect.users.application.usecases.GetUserPreferencesUseCase;
 import com.petconnect.users.application.usecases.SearchProvidersUseCase;
 import com.petconnect.users.application.usecases.UpdateProfileUseCase;
+import com.petconnect.users.application.usecases.UpdateProfilePreferencesUseCase;
 import com.petconnect.users.domain.UserProfile;
 import com.petconnect.users.domain.exceptions.UserNotFoundException;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,21 +39,34 @@ public class UserProfileController {
 
     private final UpdateProfileUseCase updateProfileUseCase;
     private final GetUserProfileUseCase getUserProfileUseCase;
+    private final GetUserPreferencesUseCase getUserPreferencesUseCase;
     private final SearchProvidersUseCase searchProvidersUseCase;
     private final CompleteOnboardingUseCase completeOnboardingUseCase;
+    private final UpdateProfilePreferencesUseCase updateProfilePreferencesUseCase;
     private final UserProfileRepository userProfileRepository;
+    private final ObjectProvider<WebSocketPresenceListener> presenceListenerProvider;
+    @Autowired(required = false)
+    private BlockedUserService blockedUserService;
+    @Autowired(required = false)
+    private PostVisibilityService postVisibilityService;
 
     public UserProfileController(
             UpdateProfileUseCase updateProfileUseCase,
             GetUserProfileUseCase getUserProfileUseCase,
+            GetUserPreferencesUseCase getUserPreferencesUseCase,
             SearchProvidersUseCase searchProvidersUseCase,
             CompleteOnboardingUseCase completeOnboardingUseCase,
-            UserProfileRepository userProfileRepository) {
+            UpdateProfilePreferencesUseCase updateProfilePreferencesUseCase,
+            UserProfileRepository userProfileRepository,
+            ObjectProvider<WebSocketPresenceListener> presenceListenerProvider) {
         this.updateProfileUseCase = updateProfileUseCase;
         this.getUserProfileUseCase = getUserProfileUseCase;
+        this.getUserPreferencesUseCase = getUserPreferencesUseCase;
         this.searchProvidersUseCase = searchProvidersUseCase;
         this.completeOnboardingUseCase = completeOnboardingUseCase;
+        this.updateProfilePreferencesUseCase = updateProfilePreferencesUseCase;
         this.userProfileRepository = userProfileRepository;
+        this.presenceListenerProvider = presenceListenerProvider;
     }
 
     @GetMapping("/profile")
@@ -55,21 +77,34 @@ public class UserProfileController {
     }
 
     @GetMapping("/profile/{profileId}")
-    public ResponseEntity<UserProfileResponse> getProfileById(@PathVariable UUID profileId) {
+    public ResponseEntity<UserProfileResponse> getProfileById(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID profileId) {
         var profile = userProfileRepository.findById(profileId)
                 .orElseThrow(() -> new UserNotFoundException("Profile not found: " + profileId));
-        return ResponseEntity.ok(toResponse(profile));
+        boolean isOwner = userDetails != null && profile.getAuthUserId().equals(userDetails.getUserId());
+        ensureProfileIsVisible(profile, isOwner, userDetails);
+        return ResponseEntity.ok(toResponse(profile, isOwner));
     }
 
     @GetMapping("/by-auth/{authUserId}")
-    public ResponseEntity<UserProfileResponse> getProfileByAuthUserId(@PathVariable UUID authUserId) {
-        var response = getUserProfileUseCase.execute(authUserId);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<UserProfileResponse> getProfileByAuthUserId(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID authUserId) {
+        var profile = userProfileRepository.findByAuthUserId(authUserId)
+                .orElseThrow(() -> new UserNotFoundException("Profile not found for user: " + authUserId));
+        boolean isOwner = userDetails != null && authUserId.equals(userDetails.getUserId());
+        ensureProfileIsVisible(profile, isOwner, userDetails);
+        return ResponseEntity.ok(toResponse(profile, isOwner));
     }
 
     @GetMapping("/profiles")
-    public ResponseEntity<List<UserProfile>> getAllProfiles() {
-        return ResponseEntity.ok(userProfileRepository.findAll());
+    public ResponseEntity<List<UserProfileResponse>> getAllProfiles(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(userProfileRepository.findAll().stream()
+                .filter(profile -> canViewProfile(profile, userDetails))
+                .map(profile -> toResponse(profile, false))
+                .toList());
     }
 
     /**
@@ -94,6 +129,22 @@ public class UserProfileController {
 
         var profile = updateProfileUseCase.execute(userDetails.getUserId(), data, avatar, coverImage);
         return ResponseEntity.ok(toResponse(profile));
+    }
+
+    @PatchMapping("/profile/preferences")
+    public ResponseEntity<UserPreferencesResponse> updateProfilePreferences(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody UpdateProfilePreferencesRequest request) {
+        var preferences = updateProfilePreferencesUseCase.execute(userDetails.getUserId(), request);
+        presenceListenerProvider.ifAvailable(listener ->
+                listener.refreshOnlineStatusVisibility(userDetails.getUserId()));
+        return ResponseEntity.ok(preferences);
+    }
+
+    @GetMapping("/profile/preferences")
+    public ResponseEntity<UserPreferencesResponse> getProfilePreferences(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(getUserPreferencesUseCase.execute(userDetails.getUserId()));
     }
 
     // ===== Onboarding post-registro =====
@@ -168,6 +219,24 @@ public class UserProfileController {
                 .orElseThrow(() -> new UserNotFoundException("Profile not found: " + profileId));
     }
 
+    private void ensureProfileIsVisible(
+            UserProfile profile, boolean isOwner, CustomUserDetails userDetails) {
+        if (!canViewProfile(profile, userDetails) && !isOwner) {
+            throw new UserNotFoundException("Profile not found: " + profile.getId());
+        }
+    }
+
+    private boolean canViewProfile(UserProfile profile, CustomUserDetails userDetails) {
+        if (postVisibilityService != null) {
+            return postVisibilityService.canViewProfile(
+                    profile, userDetails == null ? null : userDetails.getUserId());
+        }
+        return (userDetails == null || blockedUserService == null
+                || !blockedUserService.isBlocked(userDetails.getUserId(), profile.getAuthUserId()))
+                && (profile.isProfilePublic()
+                        || userDetails != null && userDetails.getUserId().equals(profile.getAuthUserId()));
+    }
+
     private void requireAdmin(CustomUserDetails userDetails) {
         boolean isAdmin = userDetails != null && userDetails.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
@@ -178,21 +247,25 @@ public class UserProfileController {
     }
 
     private UserProfileResponse toResponse(UserProfile profile) {
+        return toResponse(profile, true);
+    }
+
+    private UserProfileResponse toResponse(UserProfile profile, boolean includePrivateFields) {
         return new UserProfileResponse(
                 profile.getId(),
                 profile.getAuthUserId(),
                 profile.getFirstName(),
                 profile.getLastName(),
-                profile.getPhone(),
+                includePrivateFields ? profile.getPhone() : null,
                 profile.getBio(),
                 profile.getAvatarUrl(),
                 profile.getCoverImageUrl(),
-                profile.getDateOfBirth(),
+                includePrivateFields ? profile.getDateOfBirth() : null,
                 profile.getLocation(),
                 profile.getLatitude(),
                 profile.getLongitude(),
                 profile.isProfilePublic(),
-                profile.isNotificationsEnabled(),
+                includePrivateFields && profile.isNotificationsEnabled(),
                 profile.getProfileType(),
                 profile.getSpecialty(),
                 profile.getLicenseNumber(),

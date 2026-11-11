@@ -12,14 +12,14 @@ import org.springframework.beans.factory.ObjectProvider;
  * Cuando la propiedad {@code app.db.reset-on-start} es {@code true}, este
  * runner ejecuta {@link Flyway#clean()} (borra {@code flyway_schema_history}
  * y todos los objetos del esquema) seguido de {@link Flyway#migrate()}
- * (vuelve a aplicar V1…Vxx, creando las tablas y sembrando datos en todas
- * ellas).
+ * (vuelve a aplicar las migraciones, creando el esquema y los datos de
+ * referencia que sigan activos en ellas).
  *
  * Flujo previsto:
- *  1. Levantar con {@code DB_RESET_ON_START=true} y {@code spring.jpa.hibernate.ddl-auto=none}:
- *     se borra el historial de Flyway, se recrea el esquema y se pueblan los datos.
- *  2. Pasar a {@code DB_RESET_ON_START=false} (y opcionalmente {@code ddl-auto=update}):
- *     Flyway ya no ejecuta nada (historial presente), los datos se mantienen.
+ *  1. Activar {@code DB_RESET_ON_START=true} para un único arranque local
+ *     deliberado: se borra y reconstruye el esquema.
+ *  2. Dejar {@code DB_RESET_ON_START=false} en los arranques normales para
+ *     conservar los datos existentes.
  */
 @Component
 public class DbResetInitializer implements CommandLineRunner {

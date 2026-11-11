@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -22,6 +23,12 @@ public class MessageDTO {
     private String status;
     private String type;
     private String attachmentUrl;
+    private String metadata;
+    private UUID replyToMessageId;
+    private String replyToContent;
+    private UUID replyToSenderId;
+    @Builder.Default
+    private List<MessageReactionDTO> reactions = List.of();
     private LocalDateTime createdAt;
     private LocalDateTime readAt;
 
@@ -35,8 +42,13 @@ public class MessageDTO {
                 .status(message.getStatus().name())
                 .type(message.getType().name())
                 .attachmentUrl(message.getAttachmentUrl())
+                .metadata(message.getMetadata())
+                .replyToMessageId(message.getReplyToMessageId())
                 .createdAt(message.getCreatedAt())
                 .readAt(message.getReadAt())
                 .build();
+    }
+
+    public record MessageReactionDTO(String emoji, UUID userId) {
     }
 }

@@ -11,6 +11,22 @@ google:
 spring:
   application:
     name: petconnect
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS:true}
 
   # Database - PostgreSQL
   datasource:
@@ -32,25 +48,13 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  # Flyway: el esquema y los datos los gestionan las migraciones V1…Vxx.
-  # migrate-on-start=false para que el DbResetInitializer controle cuándo migrar.
+  # Flyway gestiona el esquema; Spring Boot aplica las migraciones al arrancar.
   flyway:
     enabled: true
-    migrate-on-start: true
     locations: classpath:db/migration
     validate-on-migrate: false
-
-  # app.db.reset-on-start: cuando true, el DbResetInitializer ejecuta
-  # flyway.clean() (borra flyway_schema_history y todos los objetos) seguido de
-  # flyway.migrate() (recrea el esquema y siembra datos en todas las tablas).
-  # DEFAULT false A PROPOSITO: clean() en cada arranque destruye los datos y,
-  # si el arranque se interrumpe, deja la BD a medias (p.ej. "relation
-  # auth_users does not exist"). Usar true SOLO para un reseteo deliberado
-  # (variable de entorno DB_RESET_ON_START=true en el arranque puntual).
-  # Arranques normales: false + spring.flyway.migrate-on-start=true (idempotente).
-  app:
-    db:
-      reset-on-start: ${DB_RESET_ON_START:false}
+    # Se permite ejecutar flyway.clean() (necesario para DB_RESET_ON_START=true).
+    clean-disabled: false
 
   # Redis
   data:
@@ -76,15 +80,24 @@ jwt:
 #     COOKIE_DOMAIN=.petconnect.com   (opcional; sin él la cookie es host-only
 #                                      de la API, lo cual también funciona)
 app:
-  cors:
-    allowed-origins: ${FRONTEND_ORIGINS:http://localhost:4200}
+  # Reset local en cada arranque: clean() borra todo el esquema y sus datos.
+  # Define DB_RESET_ON_START=false para conservar los datos en un arranque.
+  # No habilitar este valor predeterminado en producción.
+  db:
+    reset-on-start: ${DB_RESET_ON_START:false}
+  frontend-url: ${FRONTEND_BASE_URL:http://localhost:4200}
+  mail:
+    from: ${SMTP_FROM:no-reply@petconnect.local}
   auth:
+    email-change-token-ttl-hours: ${EMAIL_CHANGE_TOKEN_TTL_HOURS:24}
     cookie:
       same-site: ${COOKIE_SAME_SITE:Lax}
       secure: ${COOKIE_SECURE:false}
       domain: ${COOKIE_DOMAIN:}
       access-path: /
       refresh-path: /api/v1/auth
+  cors:
+    allowed-origins: ${FRONTEND_ORIGINS:http://localhost:4200}
 
 # Server
 server:

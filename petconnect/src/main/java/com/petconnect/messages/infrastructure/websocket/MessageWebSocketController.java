@@ -51,7 +51,9 @@ public class MessageWebSocketController {
                     request.receiverId(),
                     conversationId,
                     request.content(),
-                    request.type());
+                    request.type(),
+                    null,
+                    null);
 
             // Enviar a la conversación específica
             messagingTemplate.convertAndSend(
@@ -59,7 +61,8 @@ public class MessageWebSocketController {
                     message);
 
             // Enviar notificación al receptor
-            if (message.getReceiverId() != null) {
+            if (message.getReceiverId() != null
+                    && messageService.shouldNotifyMessages(message.getReceiverId())) {
                 messagingTemplate.convertAndSendToUser(
                         message.getReceiverId().toString(),
                         "/queue/notifications",

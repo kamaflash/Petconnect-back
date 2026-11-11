@@ -32,6 +32,11 @@ public class JpaAuthUserRepositoryAdapter implements AuthUserRepository {
     }
 
     @Override
+    public Optional<AuthUser> findByEmailChangeTokenHash(String tokenHash) {
+        return springDataAuthUserRepository.findByEmailChangeTokenHash(tokenHash);
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         return springDataAuthUserRepository.existsByEmail(email);
     }

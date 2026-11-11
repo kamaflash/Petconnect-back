@@ -50,6 +50,18 @@ public class UserProfile extends BaseEntity {
     private boolean notificationsEnabled;
 
     @Column(nullable = false, length = 20)
+    private String directMessagePolicy;
+
+    @Column(nullable = false)
+    private boolean showOnlineStatus;
+
+    @Column(nullable = false)
+    private boolean notifyMessages;
+
+    @Column(nullable = false, length = 20)
+    private String feedDefault;
+
+    @Column(nullable = false, length = 20)
     private String profileType;
 
     /** Cambio de tipo (vet/shelter) pendiente de aprobación de un administrador. */
@@ -76,6 +88,9 @@ public class UserProfile extends BaseEntity {
     @Column(length = 255)
     private String website;
 
+    @Column(name = "donation_url", length = 2048)
+    private String donationUrl;
+
     /**
      * Marca de onboarding: el usuario ha elegido su tipo de cuenta y ha
      * confirmado sus datos en el flujo de onboarding. Se activa al guardar el
@@ -98,6 +113,10 @@ public class UserProfile extends BaseEntity {
         this.coverImageUrl = "https://res.cloudinary.com/dxjcjee8f/image/upload/v1783692381/usiszz095a8bvfryznaz.png";
         this.profilePublic = true;
         this.notificationsEnabled = true;
+        this.directMessagePolicy = DirectMessagePolicy.EVERYONE.name();
+        this.showOnlineStatus = true;
+        this.notifyMessages = true;
+        this.feedDefault = "ALL";
     }
 
     public void updateProfile(String firstName, String lastName, String phone, String bio, LocalDate dateOfBirth) {
@@ -120,6 +139,10 @@ public class UserProfile extends BaseEntity {
     /** Guarda los servicios del catálogo marcados por un vet (comma-separated). */
     public void updateServices(String services) {
         this.services = services;
+    }
+
+    public void updateDonationUrl(String donationUrl) {
+        this.donationUrl = donationUrl;
     }
 
     /**
@@ -294,6 +317,38 @@ public class UserProfile extends BaseEntity {
         this.notificationsEnabled = notificationsEnabled;
     }
 
+    public DirectMessagePolicy getDirectMessagePolicy() {
+        return DirectMessagePolicy.valueOf(directMessagePolicy);
+    }
+
+    public void setDirectMessagePolicy(DirectMessagePolicy directMessagePolicy) {
+        this.directMessagePolicy = directMessagePolicy.name();
+    }
+
+    public boolean isShowOnlineStatus() {
+        return showOnlineStatus;
+    }
+
+    public void setShowOnlineStatus(boolean showOnlineStatus) {
+        this.showOnlineStatus = showOnlineStatus;
+    }
+
+    public boolean isNotifyMessages() {
+        return notifyMessages;
+    }
+
+    public void setNotifyMessages(boolean notifyMessages) {
+        this.notifyMessages = notifyMessages;
+    }
+
+    public String getFeedDefault() {
+        return feedDefault;
+    }
+
+    public void setFeedDefault(String feedDefault) {
+        this.feedDefault = feedDefault;
+    }
+
     public UUID getAuthUserId() {
         return authUserId;
     }
@@ -376,5 +431,9 @@ public class UserProfile extends BaseEntity {
 
     public String getWebsite() {
         return website;
+    }
+
+    public String getDonationUrl() {
+        return donationUrl;
     }
 }

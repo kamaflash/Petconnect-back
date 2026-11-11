@@ -95,46 +95,18 @@ public class SecurityConfig {
                                 "/actuator/health", "/actuator/info",
                                 "/ws", "/ws/**", "/sockjs/**"))
                 .authorizeHttpRequests(auth -> auth
+                        // Puntos de entrada previa al login: siempre abiertos.
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/pet-passports/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/home/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/social/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/social/posts").permitAll()
-                        // Los avisos de animales perdidos deben poder difundirse sin
-                        // sesión (solo exponen datos no personales); toda escritura
-                        // exige autenticación y se valida en el servicio.
-                        .requestMatchers(HttpMethod.GET, "/api/v1/lost-pets/**").permitAll()
-                        // Endpoint auxiliar para establecer la cookie XSRF-TOKEN tras el login.
-                        // No est\u00e1 en ignoringRequestMatchers para CSRF as\u00ed que el filtro
-                        // genera y establece la cookie en la respuesta.
+                        // Token CSRF previo a la sesión.
                         .requestMatchers(HttpMethod.GET, "/api/v1/csrf-token").permitAll()
-                        // Lecturas públicas que no requieren sesión previa.
-                        // Nota: solo GET; ninguna escritura se abre aquí.
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/v1/users/profiles",
-                                "/api/v1/users/providers",
-                                "/api/v1/users/profile/*",
-                                "/api/v1/users/by-auth/*",
-                                "/api/v1/presence/online",
-                                "/api/v1/pets/*",
-                                "/api/v1/pets/by-owner/*",
-                                "/api/v1/pets/*/like/status",
-                                "/api/v1/pets/*/like/count",
-                                "/api/v1/pets/*/likes",
-                                "/api/v1/likes/**",
-                                "/api/v1/marketplace/products",
-                                "/api/v1/marketplace/products/category/**",
-                                "/api/v1/geocode/**",
-                                "/api/v1/adoptions/*/history")
-                        .permitAll()
-                        // Las comunidades y sus contenidos públicos son navegables sin sesión.
-                        .requestMatchers(HttpMethod.GET, "/api/v1/communities/**").permitAll()
-                        // WebSocket: el handshake HTTP no puede llevar cabecera Authorization
-                        // (el token viaja en el frame STOMP CONNECT). Permitimos el endpoint y
-                        // la autenticación se valida en el JwtChannelInterceptor.
+                        // WebSocket handshake: el HTTP no puede llevar cabecera Authorization;
+                        // el JWT viaja en el frame STOMP CONNECT y se valida en JwtChannelInterceptor.
                         .requestMatchers("/ws", "/ws/**", "/sockjs/**").permitAll()
+                        // Lecturas públicas de negocio muy puntuales (no exponen datos personales sensibles).
+                        .requestMatchers(HttpMethod.GET, "/api/v1/lost-pets/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/communities/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/shelters/*/donation-link").permitAll()
+                        // Todo lo demás requiere autenticación.
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // Sin esto, Spring responde 403 a las peticiones anónimas sobre

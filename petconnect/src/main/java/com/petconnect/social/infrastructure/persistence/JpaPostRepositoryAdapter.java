@@ -41,6 +41,11 @@ public class JpaPostRepositoryAdapter implements PostRepository {
     }
 
     @Override
+    public Page<Post> findActivePaginatedExcludingAuthors(List<UUID> excludedAuthorIds, Pageable pageable) {
+        return springDataPostRepository.findByActiveTrueAndAuthorIdNotIn(excludedAuthorIds, pageable);
+    }
+
+    @Override
     public List<Post> findByAuthorId(UUID authorId) {
         return springDataPostRepository.findByAuthorId(authorId);
     }
@@ -71,9 +76,59 @@ public class JpaPostRepositoryAdapter implements PostRepository {
     }
 
     @Override
+    public Page<Post> findActiveByIntentExcludingAuthors(
+            PostIntent intent, List<UUID> excludedAuthorIds, Pageable pageable) {
+        return springDataPostRepository.findByActiveTrueAndIntentAndAuthorIdNotIn(
+                intent, excludedAuthorIds, pageable);
+    }
+
+    @Override
     public Page<Post> findActiveByAuthorIdInAndIntent(List<UUID> authorIds, PostIntent intent,
             Pageable pageable) {
         return springDataPostRepository.findByActiveTrueAndAuthorIdInAndIntent(authorIds, intent, pageable);
+    }
+
+    @Override
+    public Page<Post> findActiveByAuthorIdInAndIntentExcludingAuthors(
+            List<UUID> authorIds, PostIntent intent, List<UUID> excludedAuthorIds, Pageable pageable) {
+        return springDataPostRepository.findByActiveTrueAndAuthorIdInAndIntentAndAuthorIdNotIn(
+                authorIds, intent, excludedAuthorIds, pageable);
+    }
+
+    @Override
+    public Page<Post> findActiveByAuthorIdInExcludingAuthors(
+            List<UUID> authorIds, List<UUID> excludedAuthorIds, Pageable pageable) {
+        return springDataPostRepository.findByActiveTrueAndAuthorIdInAndAuthorIdNotIn(
+                authorIds, excludedAuthorIds, pageable);
+    }
+
+    @Override
+    public Page<Post> findVisibleActive(
+            PostIntent intent,
+            UUID viewerProfileId,
+            List<UUID> excludedAuthorProfileIds,
+            boolean excludeBlockedAuthors,
+            List<UUID> authorProfileIds,
+            boolean filterAuthors,
+            Pageable pageable) {
+        return springDataPostRepository.findVisibleActive(
+                intent,
+                viewerProfileId,
+                excludedAuthorProfileIds,
+                excludeBlockedAuthors,
+                authorProfileIds,
+                filterAuthors,
+                pageable);
+    }
+
+    @Override
+    public List<Post> findActiveByAuthorId(UUID authorId) {
+        return springDataPostRepository.findByAuthorIdAndActiveTrue(authorId);
+    }
+
+    @Override
+    public List<Post> findActiveByPetId(UUID petId) {
+        return springDataPostRepository.findByPetIdAndActiveTrue(petId);
     }
 
     @Override
@@ -86,5 +141,3 @@ public class JpaPostRepositoryAdapter implements PostRepository {
         springDataPostRepository.delete(post);
     }
 }
-
-

@@ -1,10 +1,12 @@
--- Seed data for development and testing
+-- Sample seed data retained as comments; disabled for clean local databases.
 -- All passwords are 'Petconnect1!' (BCrypt hashed)
 -- Password hash: $2b$10$FgO/DYypFxQDRSq7.9JEJOJwVNKUKxCPp.aQlbt42c56/RrAHt0ri
 
 -- ============================================================
 -- AUTH USERS
 -- ============================================================
+-- Local database: keep sample records documented but do not load them.
+/*
 INSERT INTO auth_users (id, version, created_at, updated_at, email, password, role, enabled, email_verified)
 VALUES
     -- Admin
@@ -66,10 +68,12 @@ VALUES
      'maria@email.com',
      '$2b$10$FgO/DYypFxQDRSq7.9JEJOJwVNKUKxCPp.aQlbt42c56/RrAHt0ri',
      'PREMIUM', TRUE, TRUE);
+*/
 
 -- ============================================================
 -- USER PROFILES
 -- ============================================================
+/*
 INSERT INTO user_profiles (id, version, created_at, updated_at, auth_user_id, first_name, last_name, phone, bio, avatar_url, cover_image_url, date_of_birth, city, country, profile_public, notifications_enabled, profile_type)
 VALUES
     -- Admin
@@ -151,10 +155,12 @@ VALUES
      'https://res.cloudinary.com/dxjcjee8f/image/upload/v1783692382/s1evvoaojmehmibovsmo.png',
      'https://res.cloudinary.com/dxjcjee8f/image/upload/v1783692381/usiszz095a8bvfryznaz.png',
      '1987-08-12', 'Málaga', 'España', TRUE, TRUE, 'user');
+*/
 
 -- ============================================================
 -- PETS
 -- ============================================================
+/*
 INSERT INTO pets (id, version, created_at, updated_at, owner_id, name, species, breed, date_of_birth, gender, bio, avatar_url, weight, weight_unit, active, microchip_id, color)
 VALUES
     -- Mascotas de Juan Pérez
@@ -258,3 +264,4 @@ VALUES
      'Hámster siro muy activo. Le encanta su rueda y hacer túneles. Ideal para niños responsables.',
      'https://res.cloudinary.com/dxjcjee8f/image/upload/v1783692382/s1evvoaojmehmibovsmo.png',
      0.15, 'kg', TRUE, NULL, 'Dorado');
+*/

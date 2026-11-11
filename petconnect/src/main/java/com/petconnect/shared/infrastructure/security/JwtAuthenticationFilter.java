@@ -37,9 +37,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain) throws ServletException, IOException {
         var requestURI = request.getRequestURI();
 
-        // Solo se omiten los endpoints de auth que no requieren sesion
-        // (login, registro, google y refresh). `/session` y `/logout` SI
-        // necesitan la cookie `PC_AT` para resolver el usuario autenticado.
+        // Login, registro, Google y refresh no necesitan sesión previa.
+        // `/session` requiere una cookie válida; `/logout` permite continuar
+        // sin autenticación si la cookie ya expiró, para poder borrar ambas.
         if (isSessionFreeAuthEndpoint(requestURI)) {
             filterChain.doFilter(request, response);
             return;
@@ -79,6 +79,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 } else {
+                    if (continueUnauthenticatedLogout(request, response, filterChain)) {
+                        return;
+                    }
                     log.warn("Invalid or expired JWT token for email: {}", email);
                     sendUnauthorizedResponse(response, "Token expired or invalid");
                     return;
@@ -86,10 +89,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
             log.warn("JWT token expired: {}", e.getMessage());
+            if (continueUnauthenticatedLogout(request, response, filterChain)) {
+                return;
+            }
             sendUnauthorizedResponse(response, "Token has expired");
             return;
         } catch (io.jsonwebtoken.JwtException e) {
             log.warn("Invalid JWT token: {}", e.getMessage());
+            if (continueUnauthenticatedLogout(request, response, filterChain)) {
+                return;
+            }
             sendUnauthorizedResponse(response, "Invalid token");
             return;
         } catch (Exception e) {
@@ -103,14 +112,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
      * Endpoints de autenticacion que no dependen de una sesion previa: emitir
-     * tokens (login, register, google) o rotarlos (refresh). El resto
-     * (`/session`, `/logout`) requiere la cookie `PC_AT` valida.
+     * tokens (login, register, google) o rotarlos (refresh).
      */
     private static boolean isSessionFreeAuthEndpoint(String requestURI) {
         return requestURI.startsWith("/api/v1/auth/login")
                 || requestURI.startsWith("/api/v1/auth/register")
                 || requestURI.startsWith("/api/v1/auth/google")
                 || requestURI.startsWith("/api/v1/auth/refresh");
+    }
+
+    private static boolean continueUnauthenticatedLogout(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain) throws IOException, ServletException {
+        if (!"POST".equals(request.getMethod())
+                || !"/api/v1/auth/logout".equals(request.getRequestURI())) {
+            return false;
+        }
+
+        SecurityContextHolder.clearContext();
+        filterChain.doFilter(request, response);
+        return true;
     }
 
     private void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {

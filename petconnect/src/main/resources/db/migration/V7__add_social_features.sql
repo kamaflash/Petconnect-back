@@ -143,9 +143,10 @@ CREATE INDEX idx_comments_target ON comments(target_id, target_type, active);
 CREATE INDEX idx_comments_user ON comments(user_id, active, created_at);
 
 -- ============================================================
--- SEED DATA
+-- SEED DATA (sample rows below are disabled for clean local databases)
 
 -- Events
+/* Local database: sample events, groups and trends are intentionally disabled.
 INSERT INTO events (id, version, created_at, updated_at, title, description, event_date, location, organizer_id, image_url, category, attendees_count, active)
 VALUES
     ('f0000000-0000-0000-0000-000000000001', 0, NOW(), NOW(), 'Feria de Adopciones', 'Encuentra a tu nuevo mejor amigo en esta feria de adopciones responsables.', NOW() + INTERVAL '7 days', 'Parque Central', 'b0000000-0000-0000-0000-000000000002', 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=600&h=300&fit=crop', 'Adopción', 156, TRUE),
@@ -166,3 +167,4 @@ VALUES
     ('10000000-0000-0000-0000-000000000003', 0, NOW(), NOW(), 'Comportamiento felino', 156, TRUE),
     ('10000000-0000-0000-0000-000000000004', 0, NOW(), NOW(), 'Cuidados de invierno', 123, TRUE),
     ('10000000-0000-0000-0000-000000000005', 0, NOW(), NOW(), 'Mascotas y niños', 98, TRUE);
+*/

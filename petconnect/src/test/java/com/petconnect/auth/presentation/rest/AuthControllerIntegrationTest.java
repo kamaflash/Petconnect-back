@@ -9,6 +9,7 @@ import com.petconnect.auth.domain.repositories.AuthUserRepository;
 import com.petconnect.shared.infrastructure.security.JwtService;
 import com.petconnect.users.domain.UserProfile;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -195,6 +196,46 @@ class AuthControllerIntegrationTest {
                                                 hasItem(containsString("PC_RT="))));
         }
 
+        @Test
+        void shouldClearCookiesAndRevokeRefreshTokenWhenAccessTokenIsInvalid() throws Exception {
+                var registerRequest = new RegisterRequest(
+                                "newuser@test.com",
+                                "password123",
+                                "John",
+                                "Doe",
+                                "USER");
+                var registerResult = mockMvc.perform(post("/api/v1/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(registerRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn();
+
+                var refreshCookie = registerResult.getResponse().getCookie("PC_RT");
+                org.junit.jupiter.api.Assertions.assertNotNull(refreshCookie);
+
+                var csrfResult = mockMvc.perform(get("/api/v1/csrf-token"))
+                                .andExpect(status().isOk())
+                                .andReturn();
+                var csrfCookie = csrfResult.getResponse().getCookie("XSRF-TOKEN");
+                org.junit.jupiter.api.Assertions.assertNotNull(csrfCookie);
+                var csrfToken = objectMapper.readTree(csrfResult.getResponse().getContentAsString())
+                                .get("token").asText();
+
+                mockMvc.perform(post("/api/v1/auth/logout")
+                                .cookie(new Cookie("PC_AT", "expired"), refreshCookie, csrfCookie)
+                                .header("X-XSRF-TOKEN", csrfToken))
+                                .andExpect(status().isNoContent())
+                                .andExpect(header().stringValues("Set-Cookie",
+                                                hasItem(containsString("PC_AT=;"))))
+                                .andExpect(header().stringValues("Set-Cookie",
+                                                hasItem(containsString("PC_RT=;"))))
+                                .andExpect(header().stringValues("Set-Cookie",
+                                                hasItem(containsString("Max-Age=0"))));
+
+                var user = authUserRepository.findByEmail("newuser@test.com").orElseThrow();
+                org.junit.jupiter.api.Assertions.assertNull(user.getRefreshToken());
+        }
+
         /**
          * El token CSRF debe devolverse tanto en la cookie como en el cuerpo y
          * en la cabecera `X-XSRF-TOKEN`. El cuerpo es imprescindible cuando
@@ -239,14 +280,13 @@ class AuthControllerIntegrationTest {
         }
 
         /**
-         * Las lecturas publicas deben responder sin sesion previa.
+         * Las lecturas de presencia y perfiles requieren autenticacion.
          */
         @Test
-        void shouldAllowPublicReadsWithoutSession() throws Exception {
+        void shouldRequireAuthenticationForPresenceAndProfileReads() throws Exception {
                 mockMvc.perform(get("/api/v1/presence/online"))
-                                .andExpect(status().isOk());
+                                .andExpect(status().isUnauthorized());
                 mockMvc.perform(get("/api/v1/users/profiles"))
-                                .andExpect(status().isOk());
+                                .andExpect(status().isUnauthorized());
         }
 }
-

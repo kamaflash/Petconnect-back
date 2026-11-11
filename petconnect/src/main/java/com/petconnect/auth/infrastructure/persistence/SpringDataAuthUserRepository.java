@@ -11,5 +11,7 @@ interface SpringDataAuthUserRepository extends JpaRepository<AuthUser, UUID> {
 
     Optional<AuthUser> findByRefreshToken(String refreshToken);
 
+    Optional<AuthUser> findByEmailChangeTokenHash(String tokenHash);
+
     boolean existsByEmail(String email);
 }

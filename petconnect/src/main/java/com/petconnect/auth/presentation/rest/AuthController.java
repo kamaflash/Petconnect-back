@@ -2,13 +2,18 @@ package com.petconnect.auth.presentation.rest;
 
 import com.petconnect.auth.application.commands.LoginCommand;
 import com.petconnect.auth.application.commands.RegisterUserCommand;
+import com.petconnect.auth.application.dto.ChangeEmailRequest;
+import com.petconnect.auth.application.dto.ChangePasswordRequest;
 import com.petconnect.auth.application.dto.GoogleLoginRequest;
 import com.petconnect.auth.application.dto.LoginRequest;
 import com.petconnect.auth.application.dto.RegisterRequest;
 import com.petconnect.auth.application.dto.SessionResponse;
 import com.petconnect.auth.application.usecases.GoogleLoginUseCase;
+import com.petconnect.auth.application.usecases.ChangePasswordUseCase;
+import com.petconnect.auth.application.usecases.ConfirmEmailChangeUseCase;
 import com.petconnect.auth.application.usecases.LoginUseCase;
 import com.petconnect.auth.application.usecases.LogoutUseCase;
+import com.petconnect.auth.application.usecases.RequestEmailChangeUseCase;
 import com.petconnect.auth.application.usecases.RefreshTokenUseCase;
 import com.petconnect.auth.application.usecases.RegisterUseCase;
 import com.petconnect.auth.domain.exceptions.AuthException;
@@ -30,6 +35,7 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -52,6 +58,12 @@ public class AuthController {
     private final LoginUseCase loginUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final AuthCookieService cookieService;
+    @Autowired(required = false)
+    private ChangePasswordUseCase changePasswordUseCase;
+    @Autowired(required = false)
+    private RequestEmailChangeUseCase requestEmailChangeUseCase;
+    @Autowired(required = false)
+    private ConfirmEmailChangeUseCase confirmEmailChangeUseCase;
     @Autowired(required = false)
     private LogoutUseCase logoutUseCase;
     @Autowired
@@ -138,10 +150,12 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @CookieValue(name = AuthCookieService.ACCESS_COOKIE, required = false) String accessToken) {
+            @CookieValue(name = AuthCookieService.ACCESS_COOKIE, required = false) String accessToken,
+            @CookieValue(name = AuthCookieService.REFRESH_COOKIE, required = false) String refreshToken) {
         if (userDetails == null) {
-            // Sin sesión no hay nada que revocar, pero se ordena al navegador
-            // borrar las cookies por si quedaron restos.
+            if (logoutUseCase != null) {
+                logoutUseCase.executeByRefreshToken(refreshToken);
+            }
             return ResponseEntity.noContent().headers(cookieService.clearSessionHeaders()).build();
         }
         log.debug("POST /api/v1/auth/logout");
@@ -151,6 +165,45 @@ public class AuthController {
         }
         HttpHeaders headers = cookieService.clearSessionHeaders();
         return ResponseEntity.noContent().headers(headers).build();
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @CookieValue(name = AuthCookieService.ACCESS_COOKIE, required = false) String accessToken,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        if (userDetails == null || changePasswordUseCase == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        changePasswordUseCase.execute(
+                userDetails.getUserId(),
+                request.currentPassword(),
+                request.newPassword());
+        if (logoutUseCase != null) {
+            logoutUseCase.execute(userDetails.getUserId(), accessToken);
+        }
+        return ResponseEntity.noContent().headers(cookieService.clearSessionHeaders()).build();
+    }
+
+    @PostMapping("/change-email")
+    public ResponseEntity<Void> changeEmail(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody ChangeEmailRequest request) {
+        if (userDetails == null || requestEmailChangeUseCase == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        requestEmailChangeUseCase.execute(userDetails.getUserId(), request.newEmail());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/confirm-email")
+    public ResponseEntity<Void> confirmEmailChange(@RequestParam String token) {
+        if (confirmEmailChangeUseCase == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+        confirmEmailChangeUseCase.execute(token);
+        return ResponseEntity.noContent().build();
     }
 
     // ========== GAMIFICATION ==========

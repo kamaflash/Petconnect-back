@@ -4,6 +4,7 @@ import com.petconnect.marketplace.application.dto.CreateProductRequest;
 import com.petconnect.marketplace.application.dto.ProductResponse;
 import com.petconnect.marketplace.application.usecases.CreateProductUseCase;
 import com.petconnect.marketplace.application.usecases.GetAllProductsUseCase;
+import com.petconnect.marketplace.application.usecases.GetProductByIdUseCase;
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
 import com.petconnect.shared.presentation.dto.PageResponse;
 import org.springframework.http.ResponseEntity;
@@ -19,12 +20,15 @@ public class ProductController {
 
     private final CreateProductUseCase createProductUseCase;
     private final GetAllProductsUseCase getAllProductsUseCase;
+    private final GetProductByIdUseCase getProductByIdUseCase;
 
     public ProductController(
             CreateProductUseCase createProductUseCase,
-            GetAllProductsUseCase getAllProductsUseCase) {
+            GetAllProductsUseCase getAllProductsUseCase,
+            GetProductByIdUseCase getProductByIdUseCase) {
         this.createProductUseCase = createProductUseCase;
         this.getAllProductsUseCase = getAllProductsUseCase;
+        this.getProductByIdUseCase = getProductByIdUseCase;
     }
 
     /**
@@ -68,5 +72,12 @@ public class ProductController {
             @RequestBody CreateProductRequest request) {
         var response = createProductUseCase.execute(userDetails.getUserId(), request);
         return ResponseEntity.ok(response);
+    }
+
+    /** Obtener el detalle completo de un producto por su ID. */
+    @GetMapping("/products/{id}")
+    public ResponseEntity<ProductResponse> getProductById(
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(getProductByIdUseCase.execute(id));
     }
 }

@@ -37,6 +37,10 @@ public class Post extends BaseEntity {
     @Column(name = "active", nullable = false)
     private boolean active;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "audience", nullable = false, length = 20)
+    private PostAudience audience = PostAudience.PUBLIC;
+
     /**
      * Intención declarada por el autor. Es nullable para mantener compatibles las
      * publicaciones creadas antes de esta funcionalidad: al leerlas se resuelve a
@@ -162,6 +166,14 @@ public class Post extends BaseEntity {
 
     public void setTags(String tags) {
         this.tags = tags;
+    }
+
+    public void setAudience(PostAudience audience) {
+        this.audience = audience == null ? PostAudience.PUBLIC : audience;
+    }
+
+    public PostAudience getAudience() {
+        return audience == null ? PostAudience.PUBLIC : audience;
     }
 
     public String getTags() {

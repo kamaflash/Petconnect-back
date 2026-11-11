@@ -1,6 +1,7 @@
 package com.petconnect.messages.infrastructure.websocket;
 
 import com.petconnect.shared.infrastructure.security.CustomUserDetails;
+import com.petconnect.users.domain.repositories.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class WebSocketPresenceListener {
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final UserProfileRepository userProfileRepository;
 
     /** sessionId -> userId, para poder resolver el userId al desconectar. */
     private final ConcurrentHashMap<String, UUID> sessionUserMap = new ConcurrentHashMap<>();
@@ -89,14 +91,34 @@ public class WebSocketPresenceListener {
     }
 
     private void broadcastOnlineStatus(UUID userId, boolean online) {
+        if (online && !isOnlineStatusVisible(userId)) {
+            return;
+        }
         messagingTemplate.convertAndSend(
                 "/topic/users/online",
                 new MessageWebSocketController.UserOnlineStatus(userId, online));
     }
 
+    public void refreshOnlineStatusVisibility(UUID userId) {
+        if (userSessionCount.containsKey(userId)) {
+            boolean visible = isOnlineStatusVisible(userId);
+            messagingTemplate.convertAndSend(
+                    "/topic/users/online",
+                    new MessageWebSocketController.UserOnlineStatus(userId, visible));
+        }
+    }
+
+    private boolean isOnlineStatusVisible(UUID userId) {
+        return userProfileRepository.findByAuthUserId(userId)
+                .map(profile -> profile.isShowOnlineStatus())
+                .orElse(false);
+    }
+
     /** Snapshot de los usuarios actualmente en línea (para inicializar la presencia del cliente). */
     public List<UUID> getOnlineUserIds() {
-        return new ArrayList<>(userSessionCount.keySet());
+        return new ArrayList<>(userSessionCount.keySet()).stream()
+                .filter(this::isOnlineStatusVisible)
+                .toList();
     }
 
     private static UUID extractUserId(Principal principal) {

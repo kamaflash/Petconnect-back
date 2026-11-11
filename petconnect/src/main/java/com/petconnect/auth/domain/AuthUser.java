@@ -33,6 +33,14 @@ public class AuthUser extends BaseEntity {
 
     private LocalDateTime refreshTokenExpiry;
 
+    @Column(length = 100)
+    private String pendingEmail;
+
+    @Column(length = 64)
+    private String emailChangeTokenHash;
+
+    private LocalDateTime emailChangeTokenExpiry;
+
     protected AuthUser() {
         super();
     }
@@ -62,6 +70,33 @@ public class AuthUser extends BaseEntity {
 
     public void updatePassword(String newPassword) {
         this.password = newPassword;
+        cancelEmailChange();
+    }
+
+    public void requestEmailChange(String newEmail, String tokenHash, LocalDateTime expiry) {
+        this.pendingEmail = newEmail;
+        this.emailChangeTokenHash = tokenHash;
+        this.emailChangeTokenExpiry = expiry;
+    }
+
+    public void cancelEmailChange() {
+        this.pendingEmail = null;
+        this.emailChangeTokenHash = null;
+        this.emailChangeTokenExpiry = null;
+    }
+
+    public void completeEmailChange(String tokenHash, LocalDateTime now) {
+        if (emailChangeTokenHash == null
+                || !emailChangeTokenHash.equals(tokenHash)
+                || emailChangeTokenExpiry == null
+                || !emailChangeTokenExpiry.isAfter(now)
+                || pendingEmail == null) {
+            throw new IllegalStateException("Email verification token is invalid or expired");
+        }
+        this.email = pendingEmail;
+        this.emailVerified = true;
+        cancelEmailChange();
+        clearRefreshToken();
     }
 
     public void disable() {
@@ -98,5 +133,17 @@ public class AuthUser extends BaseEntity {
 
     public LocalDateTime getRefreshTokenExpiry() {
         return refreshTokenExpiry;
+    }
+
+    public String getPendingEmail() {
+        return pendingEmail;
+    }
+
+    public String getEmailChangeTokenHash() {
+        return emailChangeTokenHash;
+    }
+
+    public LocalDateTime getEmailChangeTokenExpiry() {
+        return emailChangeTokenExpiry;
     }
 }

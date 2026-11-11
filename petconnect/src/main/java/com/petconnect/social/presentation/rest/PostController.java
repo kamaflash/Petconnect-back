@@ -6,7 +6,9 @@ import com.petconnect.shared.domain.repositories.LikeRepository;
 import com.petconnect.shared.infrastructure.services.CloudinaryService;
 import com.petconnect.social.domain.Post;
 import com.petconnect.social.domain.Comment;
+import com.petconnect.social.domain.PostAudience;
 import com.petconnect.social.domain.PostIntent;
+import com.petconnect.social.application.PostVisibilityService;
 import com.petconnect.shared.infrastructure.security.CurrentUserService;
 import com.petconnect.social.domain.repositories.CommentRepository;
 import com.petconnect.social.domain.TrendingTopic;
@@ -14,6 +16,7 @@ import com.petconnect.social.domain.repositories.PostRepository;
 import com.petconnect.social.domain.repositories.FollowRepository;
 import com.petconnect.social.infrastructure.persistence.SpringDataTrendingTopicRepository;
 import com.petconnect.users.domain.repositories.UserProfileRepository;
+import com.petconnect.users.application.BlockedUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,9 +53,12 @@ public class PostController {
     private final SpringDataTrendingTopicRepository trendingTopicRepository;
     private final CommentRepository commentRepository;
     private final CurrentUserService currentUserService;
+    private final PostVisibilityService postVisibilityService;
 
     @Autowired
     private ApplicationEventPublisher applicationEventPublisher;
+    @Autowired(required = false)
+    private BlockedUserService blockedUserService;
 
     public PostController(PostRepository postRepository,
             UserProfileRepository userProfileRepository,
@@ -61,7 +67,8 @@ public class PostController {
             FollowRepository followRepository,
             SpringDataTrendingTopicRepository trendingTopicRepository,
             CommentRepository commentRepository,
-            CurrentUserService currentUserService) {
+            CurrentUserService currentUserService,
+            PostVisibilityService postVisibilityService) {
         this.postRepository = postRepository;
         this.userProfileRepository = userProfileRepository;
         this.cloudinaryService = cloudinaryService;
@@ -70,18 +77,26 @@ public class PostController {
         this.trendingTopicRepository = trendingTopicRepository;
         this.commentRepository = commentRepository;
         this.currentUserService = currentUserService;
+        this.postVisibilityService = postVisibilityService;
     }
 
     @GetMapping("/posts")
     public ResponseEntity<List<Post>> getAllPosts() {
         log.debug("GET /api/v1/social/posts");
-        return ResponseEntity.ok(postRepository.findAll());
+        UUID viewerId = currentUserService.getCurrentUserId().orElse(null);
+        return ResponseEntity.ok(postRepository.findAll().stream()
+                .filter(Post::isActive)
+                .filter(post -> postVisibilityService.canView(post, viewerId))
+                .toList());
     }
 
     @GetMapping("/posts/{postId}")
     public ResponseEntity<Post> getPost(@PathVariable UUID postId) {
         log.debug("GET /api/v1/social/posts/{}", postId);
         return postRepository.findById(postId)
+                .filter(Post::isActive)
+                .filter(post -> postVisibilityService.canView(
+                        post, currentUserService.getCurrentUserId().orElse(null)))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -89,13 +104,27 @@ public class PostController {
     @GetMapping("/posts/by-author/{authorId}")
     public ResponseEntity<List<Post>> getPostsByAuthor(@PathVariable UUID authorId) {
         log.debug("GET /api/v1/social/posts/by-author/{}", authorId);
-        return ResponseEntity.ok(postRepository.findByAuthorId(authorId));
+        var author = userProfileRepository.findByAuthUserId(authorId)
+                .or(() -> userProfileRepository.findById(authorId));
+        if (author.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        UUID viewerId = currentUserService.getCurrentUserId().orElse(null);
+        if (!postVisibilityService.canViewProfile(author.get(), viewerId)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(postRepository.findActiveByAuthorId(author.get().getId()).stream()
+                .filter(post -> postVisibilityService.canView(post, viewerId))
+                .toList());
     }
 
     @GetMapping("/posts/by-pet/{petId}")
     public ResponseEntity<List<Post>> getPostsByPet(@PathVariable UUID petId) {
         log.debug("GET /api/v1/social/posts/by-pet/{}", petId);
-        return ResponseEntity.ok(postRepository.findByPetId(petId));
+        UUID viewerId = currentUserService.getCurrentUserId().orElse(null);
+        return ResponseEntity.ok(postRepository.findActiveByPetId(petId).stream()
+                .filter(post -> postVisibilityService.canView(post, viewerId))
+                .toList());
     }
 
     @PostMapping("/posts")
@@ -104,6 +133,7 @@ public class PostController {
             @RequestPart("caption") String caption,
             @RequestPart(value = "tags", required = false) String tags,
             @RequestPart(value = "intent", required = false) String intent,
+            @RequestPart(value = "audience", required = false) String audience,
             @RequestPart(value = "location", required = false) String location,
             @RequestPart(value = "latitude", required = false) String latitude,
             @RequestPart(value = "longitude", required = false) String longitude,
@@ -115,13 +145,22 @@ public class PostController {
             return ResponseEntity.badRequest().build();
         }
 
-        UUID authorUuid;
+        UUID authorAuthUserId;
         try {
-            authorUuid = UUID.fromString(authorId);
+            authorAuthUserId = UUID.fromString(authorId);
         } catch (IllegalArgumentException e) {
             log.error("Invalid authorId format: {}", authorId);
             return ResponseEntity.badRequest().build();
         }
+        UUID authenticatedUserId = currentUserService.getCurrentUserId().orElse(null);
+        if (authenticatedUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!authenticatedUserId.equals(authorAuthUserId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        var authorProfile = userProfileRepository.findByAuthUserId(authenticatedUserId)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user profile not found"));
 
         String imageUrl = "https://placehold.co/600x400?text=Post";
         if (image != null && !image.isEmpty() && cloudinaryService != null) {
@@ -173,11 +212,12 @@ public class PostController {
                 return ResponseEntity.badRequest().build();
             }
 
-            Post post = new Post(authorUuid, imageUrl, caption, processedTags, null,
+            Post post = new Post(authorProfile.getId(), imageUrl, caption, processedTags, null,
                     PostIntent.parse(intent), location, lat, lon);
+            post.setAudience(PostAudience.parse(audience));
             Post saved = postRepository.save(post);
             log.info("Post saved with id: {}, tags: {}", saved.getId(), saved.getTags());
-            publishGamification(ActionType.GENERATE_POST, authorUuid);
+            publishGamification(ActionType.GENERATE_POST, authenticatedUserId);
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (IllegalArgumentException e) {
             log.error("Invalid tag format: {}", e.getMessage());
@@ -205,6 +245,9 @@ public class PostController {
         log.debug("PUT /api/v1/social/posts/{}", postId);
         return postRepository.findById(postId)
                 .map(existing -> {
+                    if (!isPostOwner(existing)) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).<Post>build();
+                    }
                     if (request.imageUrl() != null) {
                         existing.setImageUrl(request.imageUrl());
                     }
@@ -213,8 +256,11 @@ public class PostController {
                     }
                     if (request.intent() != null) {
                         existing.setIntent(PostIntent.parse(request.intent()));
-                    existing.setLocation(request.location(), request.latitude(), request.longitude());
                     }
+                    if (request.audience() != null) {
+                        existing.setAudience(PostAudience.parse(request.audience()));
+                    }
+                    existing.setLocation(request.location(), request.latitude(), request.longitude());
                     Post saved = postRepository.save(existing);
                     return ResponseEntity.ok(saved);
                 })
@@ -226,6 +272,9 @@ public class PostController {
         log.debug("DELETE /api/v1/social/posts/{}", postId);
         return postRepository.findById(postId)
                 .map(post -> {
+                    if (!isPostOwner(post)) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).<Void>build();
+                    }
                     post.softDelete();
                     postRepository.save(post);
                     return ResponseEntity.noContent().<Void>build();
@@ -287,26 +336,24 @@ public class PostController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String intent) {
         log.debug("GET /api/v1/social/posts/following/{} - page: {}, size: {}", userId, page, size);
-
-        List<UUID> followingIds = followRepository.findByFollowerId(userId).stream()
-                .map(follow -> follow.getFollowingId())
-                .collect(Collectors.toList());
-
-        followingIds.add(userId);
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        PostIntent intentFilter = PostIntent.parse(intent);
-
-        Page<Post> posts = intentFilter == null
-                ? postRepository.findActiveByAuthorIdIn(followingIds, pageable)
-                : postRepository.findActiveByAuthorIdInAndIntent(followingIds, intentFilter, pageable);
-
-        if (posts.getTotalElements() == 0) {
-            log.info("No posts found for followed users, returning all active posts");
-            posts = intentFilter == null
-                    ? postRepository.findActivePaginated(pageable)
-                    : postRepository.findActiveByIntent(intentFilter, pageable);
+        UUID viewerAuthId = currentUserService.getCurrentUserId().orElse(null);
+        if (viewerAuthId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        if (!viewerAuthId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        var viewerProfile = userProfileRepository.findByAuthUserId(viewerAuthId)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user profile not found"));
+        List<UUID> followingIds = followRepository.findByFollowerId(viewerProfile.getId()).stream()
+                .map(follow -> follow.getFollowingId())
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
+        followingIds.add(viewerProfile.getId());
+
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 50),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Post> posts = visibleFeed(
+                PostIntent.parse(intent), viewerProfile.getId(), followingIds, pageable);
 
         log.info("Returning page {} with {} posts for user {}", page, posts.getNumberOfElements(), userId);
         return ResponseEntity.ok(posts);
@@ -322,14 +369,47 @@ public class PostController {
         log.debug("GET /api/v1/social/posts/feed - page: {}, size: {}", page, size);
 
         // Return paginated active posts for public feed (social-page)
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 50),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
         PostIntent intentFilter = PostIntent.parse(intent);
-        Page<Post> posts = intentFilter == null
-                ? postRepository.findActivePaginated(pageable)
-                : postRepository.findActiveByIntent(intentFilter, pageable);
+        UUID viewerAuthId = currentUserService.getCurrentUserId().orElse(null);
+        UUID viewerProfileId = viewerAuthId == null ? null
+                : userProfileRepository.findByAuthUserId(viewerAuthId).map(UserProfile::getId).orElse(null);
+        Page<Post> posts = visibleFeed(intentFilter, viewerProfileId, List.of(), pageable);
 
         log.info("Returning page {} with {} active posts (total: {})", page, posts.getNumberOfElements(), posts.getTotalElements());
         return ResponseEntity.ok(posts);
+    }
+
+    private Page<Post> visibleFeed(
+            PostIntent intent, UUID viewerProfileId, List<UUID> authorProfileIds, Pageable pageable) {
+        List<UUID> blockedProfileIds = viewerProfileId == null || blockedUserService == null
+                ? List.of()
+                : blockedUserService.relatedProfileIds(
+                        userProfileRepository.findById(viewerProfileId).orElseThrow().getAuthUserId());
+        boolean excludeBlocked = !blockedProfileIds.isEmpty();
+        if (!excludeBlocked) {
+            blockedProfileIds = List.of(new UUID(0L, 0L));
+        }
+        boolean filterAuthors = !authorProfileIds.isEmpty();
+        if (!filterAuthors) {
+            authorProfileIds = List.of(new UUID(0L, 0L));
+        }
+        return postRepository.findVisibleActive(
+                intent,
+                viewerProfileId,
+                blockedProfileIds,
+                excludeBlocked,
+                authorProfileIds,
+                filterAuthors,
+                pageable);
+    }
+
+    private boolean isPostOwner(Post post) {
+        UUID viewerId = currentUserService.getCurrentUserId().orElse(null);
+        return viewerId != null && userProfileRepository.findById(post.getAuthorId())
+                .map(author -> viewerId.equals(author.getAuthUserId()))
+                .orElse(false);
     }
 
     // ========== SOLUCION DE PREGUNTAS ==========
@@ -448,5 +528,5 @@ record CreatePostRequest(UUID authorId, String imageUrl, String caption, String 
 }
 
 record UpdatePostRequest(String imageUrl, String caption, String intent,
-        String location, Double latitude, Double longitude) {
+        String audience, String location, Double latitude, Double longitude) {
 }

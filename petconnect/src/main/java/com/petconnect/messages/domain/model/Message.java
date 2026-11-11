@@ -41,6 +41,12 @@ public class Message {
 
     private String attachmentUrl;
 
+    @Column(columnDefinition = "TEXT")
+    private String metadata;
+
+    @Column(name = "reply_to_message_id")
+    private UUID replyToMessageId;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -52,6 +58,6 @@ public class Message {
     }
 
     public enum MessageType {
-        TEXT, IMAGE, FILE, SYSTEM
+        TEXT, IMAGE, FILE, SYSTEM, PET_CARD, ADOPTION_CARD
     }
 }
