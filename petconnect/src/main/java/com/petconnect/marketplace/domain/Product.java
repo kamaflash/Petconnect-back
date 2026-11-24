@@ -103,6 +103,28 @@ public class Product extends BaseEntity {
         this.tags = tags;
     }
 
+    /**
+     * Actualiza solo los campos que vienen no nulos. Los campos nulos se
+     * conservan tal cual, permitiendo actualización parcial del producto.
+     */
+    public void updatePartial(String name, String description, BigDecimal price,
+            BigDecimal originalPrice, String category, String subcategory,
+            String imageUrl, String imageUrls, Integer stock,
+            String brand, Integer discount, String tags) {
+        if (name != null) this.name = name;
+        if (description != null) this.description = description;
+        if (price != null) this.price = price;
+        if (originalPrice != null) this.originalPrice = originalPrice;
+        if (category != null) this.category = category;
+        if (subcategory != null) this.subcategory = subcategory;
+        if (imageUrl != null) this.imageUrl = imageUrl;
+        if (imageUrls != null) this.imageUrls = imageUrls;
+        if (stock != null) this.stock = stock;
+        if (brand != null) this.brand = brand;
+        if (discount != null) this.discount = discount;
+        if (tags != null) this.tags = tags;
+    }
+
     public void updateStock(Integer stock) {
         this.stock = stock;
     }

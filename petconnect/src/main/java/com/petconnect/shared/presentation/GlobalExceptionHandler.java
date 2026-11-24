@@ -1,6 +1,8 @@
 package com.petconnect.shared.presentation;
 
 import com.petconnect.auth.domain.exceptions.AuthException;
+import com.petconnect.marketplace.domain.exceptions.ProductNotFoundException;
+import com.petconnect.marketplace.domain.exceptions.ProductNotOwnedException;
 import com.petconnect.pets.domain.exceptions.PetNotFoundException;
 import com.petconnect.users.domain.exceptions.UserNotFoundException;
 import com.petconnect.users.domain.exceptions.InvalidProfileCredentialException;
@@ -30,6 +32,22 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleUserNotFoundException(UserNotFoundException ex) {
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("User Not Found");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(ProductNotFoundException.class)
+    public ProblemDetail handleProductNotFoundException(ProductNotFoundException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Product Not Found");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(ProductNotOwnedException.class)
+    public ProblemDetail handleProductNotOwnedException(ProductNotOwnedException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        problem.setTitle("Forbidden");
         problem.setProperty("timestamp", Instant.now());
         return problem;
     }

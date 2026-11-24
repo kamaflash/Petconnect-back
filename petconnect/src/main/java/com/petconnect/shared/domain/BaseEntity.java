@@ -3,6 +3,7 @@ package com.petconnect.shared.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Version;
 import org.hibernate.annotations.UuidGenerator;
 import java.time.LocalDateTime;
@@ -61,6 +62,11 @@ public abstract class BaseEntity {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    @PreUpdate
+    private void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 
     @Override
